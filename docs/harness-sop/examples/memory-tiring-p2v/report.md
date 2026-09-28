@@ -1,324 +1,405 @@
-# 内存分层方向 · Proxmox VE 对标 VMware vSphere 分析报告
+# 内存分层方向 · Proxmox VE 如何超越 VMware vSphere —— 对标分析与业务/技术规划
 
-> 本报告由 `competitive-analysis` SOP 生成，遵循 `docs/authoring/` 写作与图表标准。检索全程
-> 无授权（DuckDuckGo/WebSearch/WebFetch）。事实性内容均给出可核验来源并 `[n]` 引注；无法核验者
-> 明确标注"无法确定"，不臆造。学术热点一节基于**用户提供的会议材料**，已如实标注来源。
+> 本报告由 `competitive-analysis` SOP 生成，遵循 `docs/authoring/` 写作与图表标准。检索使用**免密钥
+> （keyless）**方式（DuckDuckGo/WebSearch/WebFetch）。事实性内容给出可核验来源并 `[n]` 引注；估算
+> 明确标注并给推导；无法核验者写"无法确定"。学术热点一节基于**用户提供、未独立核验**的材料 [8]。
+>
+> 本版为 v3：经四路 reviewer 对抗式评审后重写，修正了 v1/v2 的多处**机制性事实错误**（详见文末
+> "修订说明"与 [process-notes.md](process-notes.md)）。
 
 ## 章节大纲
 
 - 目标、意图与价值假设
-- 研究背景与范围界定
-- 内存分层方向的学术研究热点
+- 研究背景与范围界定（含代次校准与机制真相）
+- 学术研究热点及其对设计的含义
 - 内核视角：Linux 内存分层的历史、现状、演进与预测
-- Proxmox 对标 VMware 的差距分析
+- Proxmox 对标 VMware 的差距分析（按两条通路）
+- 如何超越：超越论点
 - 行动路线（价值筛选）
 - 最优价值 MVP 架构设计
+- 业务规划
 - MVP 价值兑现
-- 结论
-- 参考资料
-- 存疑与需确认
+- 对比测试设计（意图与预估）
+- 结论与投资建议
+- 参考资料 / 修订说明 / 存疑与需确认
 
 ## 零、目标、意图与价值假设
 
 | 要素 | 内容 |
 |---|---|
-| 业务目标与意图 | 判断 Proxmox VE 是否、以及如何在内存分层方向投入，以缩小与 VMware vSphere 的差距，并锁定"投入产出比最高"的 MVP，支撑一次投入决策 |
-| 受益者 | 有大内存与超分（overcommit）诉求、追求单机整合密度与总拥有成本（TCO）的私有云与虚拟化用户，以及 Proxmox 生态 |
-| 价值主张 | 用更低成本的慢层内存（NVMe 或 CXL）安全地扩展可用内存，提升单机 VM 密度、降低每 GB 内存成本，同时不牺牲关键负载的服务质量（SLO） |
-| 度量口径 | 先导：单机可安全超分比例、慢层访问占比与迁移开销、启用上手时间；滞后：每 GB 内存成本下降、单机 VM 密度提升、SLO 达标率 |
-
-后续每一节的判断都要能追溯回这张卡。
+| 业务目标与意图 | 回答"Proxmox VE 在内存分层方向**如何超越** VMware vSphere"，并给出配套的业务与技术规划，支撑一次"是否投入、投多少、先打谁"的决策 |
+| 受益者 | 见"业务规划"的四类具名买家段（CSP/托管、Broadcom 迁移难民、公共部门/信创、边缘/电信） |
+| 价值主张 | 以更低成本的慢层内存安全扩容、提升密度、降低 TCO，且以**开源自主可控 + CXL 原生分层**建立 VMware 结构上难以复制的差异化 |
+| 度量口径（分通路） | 见"价值兑现"与"对比测试设计"，先导/滞后指标分 NVMe-swap 与 CXL-NUMA 两条通路给出 |
 
 ## 一、研究背景与范围界定
 
-内存分层的核心，是把数据在不同带宽、延迟、容量、成本的介质之间调度，让相对更快的处理器不至于
-被内存"喂不饱"，同时兼顾功耗与成本——本质是一个多目标优化问题（本段背景取自用户提供的综述
-材料 [8]）。它并非新概念：从硬件的多级缓存，到操作系统的虚拟内存与交换，再到企业存储的分层，
-都是它的历史形态。当以 PCM 为基础的字节可寻址非易失内存（Intel Optane PMem）出现后，业界面临
-"用硬件管还是用软件管"的分野；而随着 Intel 于 2022 年逐步退出 Optane 业务（公开信息），产业重心
-明显转向 CXL 这类新型互连驱动的分层与内存解耦方向 [5][6][7]。
+内存分层的核心，是把数据在带宽、延迟、容量、成本各异的介质间调度，兼顾性能与成本（背景取自用户
+材料 [8]）。以 PCM 为基础的 Optane PMem 曾是硬件路线代表，但 **Intel 已于 2022-07 宣布退出 Optane
+业务并计提约 5.59 亿美元减值，明确将"产业转向 CXL"列为原因**（支持至 2025）[14]。产业重心因此转向
+以 CXL 为代表的新型互连内存。
 
-对虚拟化平台而言，"内存分层"落到两个层面：一是**分层引擎**（谁来判断冷热、迁移页面），二是
-**产品化**（是否开箱可用、可观测、可运维、经过校验）。本报告即围绕这两个层面，在下列维度上对标
-Proxmox VE 8.x（基于 Debian 12 与 Linux 6.x 内核，开源，AGPLv3）与 VMware vSphere/ESXi 9.x
-（VCF 9，商业授权）：分层机制、慢层介质、透明性与易用性、观测与迁移策略、生态与集成、成本与
+**代次校准（v3 关键修正）**：内存分层能力强绑内核版本。加权交织 `MPOL_WEIGHTED_INTERLEAVE` 于内核
+6.9 合入、DAMON 迁移动作于 6.11 合入 [6][12]；**Proxmox VE 8.x 默认内核为 6.8，二者均不具备**。
+**Proxmox VE 9.0 于 2025-08-05 发布，默认内核 6.14** [15]，才真正具备这些机制。故本报告以
+**Proxmox VE 9.0（内核 6.14）对 VMware vSphere/ESXi 9.x** 为对标代次（v1/v2 误用 PVE 8.x，已修正）。
+
+**机制真相（贯穿全报告）**：Linux 上"内存分层"有两条**机制不同**的通路，必须分别评估：
+
+- **CXL/PMem 慢层 = 主动 NUMA 分层**：慢层被内核当作**内存 NUMA 节点**，由 TPP、DAMON、降级/提升、
+  加权交织主动管理 [5][6][7]。
+- **NVMe 慢层 = 被动 swap/zswap**：NVMe 是**块设备**，无法经 `daxctl` 变为 system-ram NUMA 节点
+  （`daxctl` 只作用于 PMem/CXL 的 device-dax）；在 Linux 上作慢层实为 **swap/zswap**（缺页触发、
+  软件 PTE），**与 TPP/DAMON 分层引擎无关** [5][12]。
+
+VMware 的"Memory Tiering over NVMe"恰恰是把 **NVMe** 作分层介质。因此像样的对标必须区分：在 NVMe
+这条 VMware 主打的通路上，Linux 上游**没有**等价的主动分层引擎（只有被动 swap）；在 CXL 这条通路上，
+Linux 有主动引擎，但生产级 CXL 硬件仍早期。评价维度据此设为：分层机制（分通路）、慢层介质、透明性/
+易用性、**热迁移与集群协同**、**大页/THP 交互**、**故障域与安全**、观测与策略、生态与验证、成本与
 授权、成熟度。
 
-## 二、内存分层方向的学术研究热点
+## 二、学术研究热点及其对设计的含义
 
-> 本节内容整理自**用户提供的** OSDI 2026 Day 1 Track 2 Session 1 会议材料 [8]，聚焦数据中心
-> 内存分层与 CXL。此处不额外引申材料未涵盖的细节。
+> 本节整理自**用户提供、未独立核验**的 OSDI 2026 Day 1 Track 2 Session 1 材料 [8]。为避免"点名不用"，
+> 每篇给出对本 MVP/benchmark 的**一句含义**。
 
-五篇论文分别从不同环节切入同一组痛点——DRAM 又贵又紧、慢层（CXL、压缩内存、SSD）有延迟与
-干扰，而现有页级机制既分不清"带宽与容量"，也应付不了"冷热对象混在同一页"与"元数据拖垮回收"：
-
-| 论文 | 切入点 | 关键手段 |
+| 论文 | 切入点 | 对本设计的含义 |
 |---|---|---|
-| RamRyder | 只卖容量、不卖带宽 | 把 DIMM 通道作为分配单位，CXL 弹性扩带宽与容量 |
-| MAC | 元数据掉进慢 CXL、回收跟不上 | 近内存加速器 offload 页描述符与 Xarray 遍历 |
-| NEMO | 观测不够细或太贵 | 内存控制器内 match-update-notify 流水线 |
-| OBASE | 冷热对象混页、页级分层失效 | Guide 间接引用 + 冷热堆重组，后端不改 |
-| MDK | 优化指标用错（总缺页 vs SLO 下长期省内存） | 以 promotion rate 为代理，配离线最优 OPP |
-
-其共同脉络是：分层正从"猜哪一页冷、再整页搬走"，走向**观测、布局、回收决策与 SLO、带宽/容量
-解耦与元数据加速**的分工协作。这对产品的启示很直接——**页仍是迁移单位，但通道、对象、元数据与
-SLO 都需要被单独建模**。这正是评估一个分层产品"上限"的标尺：VMware 与 Proxmox 目前都还停留在
-相对朴素的页级/介质级分层，离学术前沿尚有距离，也因此存在长期演进空间。
+| RamRyder | 只卖容量不卖带宽；通道作分配单位 | 警示"带宽 vs 容量"不可混：**加权交织是带宽聚合分配策略，不是冷页下沉**，不能塞进容量型分层 MVP（见第七节纠正）|
+| MAC | 元数据掉进慢 CXL、回收跟不上 | 大内存 VM 的页表/元数据放置需关注，慢层不宜承载元数据 |
+| NEMO | 观测太粗或太贵 | MVP 的观测应低开销、可按层/按 VM，呼应 DAMON 采样 |
+| OBASE | 冷热对象混页、页级失效 | 页级分层有上限；远期可探对象级布局，近期不纳入 |
+| MDK | 目标应是"SLO 下长期省内存"，非最少缺页 | **直接采纳**：DAMOS 策略目标设为 promotion-rate/SLO，benchmark 增设 promotion-rate 指标（见第十节）|
 
 ## 三、内核视角：Linux 内存分层的历史、现状、演进与预测
 
-内存管理的绝大部分能力来自 Linux 内核，因此**内核在内存分层上的轨迹本身就是一个一等分析源**。这
-一视角揭示了一个结构性差异：**Proxmox 基于 Linux，免费继承内核飞速演进的分层上游；而 VMware ESXi
-使用自研的 vmkernel（非 Linux），分层能力须自建自维护**——同一份上游红利，Proxmox 拿得到，VMware
-拿不到。
+内存管理绝大部分来自 Linux 内核，故内核轨迹是一等分析源。但须避免一面倒：VMware 的 vmkernel（非
+Linux）虽拿不到内核上游红利，却在气球、透明页共享、超分、hypervisor swap 上有约二十年积累，并**率先
+把 NVMe 主动分层做到 GA** [1]——"拿不到红利"只是硬币一面，另一面是"它自建了 Linux 尚缺的 NVMe 主动
+引擎"。
 
-- **历史**：分层脱胎于内核既有的 NUMA 均衡与页回收；随后引入源自 Meta 的透明页放置（TPP）、数据
-  访问监控 DAMON、以及慢层降级与快层提升（demotion 与 promotion）等机制 [5][7]。
-- **现状**：内核已提供显式内存层与降级/提升、加权交织（Weighted Interleave）[6]，以及把 CXL 内存
-  映射为 NUMA 节点的路径（`daxctl --mode=system-ram`）[5]；DAMON 可自调优冷热阈值 [7]。截至 2026 年
-  9 月仍有多条在研工作：AMD 主导的 pghot 热页提升框架（整合 IBS 采样，历经多轮修订尚未合入，且与
-  DAMON 存在职责之争），以及"分层感知的内存 cgroup"（两套竞争补丁，社区倾向 Hahn 方案，内核是否
-  应引入层级配额仍有争议）[12]。
-- **演进**：慢层热页检测仍是公认难点，工作负载填充顺序、层级配额语义都在打磨中 [12]，与学术前沿
-  "观测、布局、回收与 SLO、带宽与元数据"的分工方向一致 [8]。
-- **预测**（属推断，非定论）：分层大概率继续向"自调优 + CXL 原生 + 更细的层级与对象治理"演进；对
-  Proxmox 而言，只要贴着上游走，就能持续无偿获得这些能力，把精力放在产品化与运维面。
+- **历史**：分层脱胎于 NUMA 均衡与页回收；引入源自 Meta 的 TPP、访问监控 DAMON、降级/提升 [5][7]。
+- **现状（截至 2026-09）**：内核已有显式内存层、加权交织（6.9）、DAMON 迁移（6.11）、CXL 经 `daxctl`
+  映射为 NUMA 节点 [5][6][12]；在研的有 AMD 主导的 pghot 热页提升框架（尚未合入，与 DAMON 有职责
+  之争）与"分层感知内存 cgroup"（两套竞争补丁，倾向 Hahn 方案）[12]。**关键缺口：NVMe 作主动内存
+  分层层的上游工作不存在，NVMe 仍是 swap-only** [12]。
+- **演进**：慢层热页检测、层级配额语义仍在打磨 [12]，与学术"观测/布局/回收-SLO/带宽-元数据"分工一致 [8]。
+- **预测（推断，非定论）**：大概率向"自调优 + CXL 原生 + 更细层级/对象/按 VM 治理"演进；"分层感知
+  内存 cgroup" [12] 一旦合入，正是按 VM 分层策略的上游基元。
 
-对本次对标的意义：Proxmox 的长期技术底座随内核水涨船高，这是它相对 VMware 的一项结构性顺风；但
-"上游有能力"不等于"产品好用"，把上游红利转化为客户价值，仍要靠后续的产品化与价值兑现。
+结构性含义：**Proxmox 在 CXL 通路上随内核水涨船高（VMware 目前仅本地 NVMe），这是它的顺风；但在
+NVMe 通路上 Proxmox 反而落后（只有被动 swap，VMware 是主动分层）。** 这直接决定了"如何超越"。
 
 ## 四、Proxmox 对标 VMware 的差距分析
 
-下表逐维对比，每条均给出可核验证据与其对价值的意义。
+按两条通路分别对比（PVE 9.0/内核 6.14 对 vSphere 9.x），每条给证据与影响。
 
-| 评价维度 | Proxmox VE 8.x（YYY） | VMware vSphere 9.x（ZZZ） | 差距与影响 |
+| 评价维度 | Proxmox VE 9.0（YYY） | VMware vSphere 9.x（ZZZ） | 差距与影响 |
 |---|---|---|---|
-| 分层机制 | 无一等产品特性；依赖 Linux 内核 TPP、DAMON、numa_balancing、demotion 等开源机制 [5]，另有 KSM、气球、NUMA 等既有能力 [4] | Hypervisor 原生的 Memory Tiering over NVMe：DRAM 为 Tier 0、NVMe 为 Tier 1，合成连续内存 [1] | 引擎层 Proxmox 借内核已可用；差在"成品特性" |
-| 慢层介质 | NVMe、PMem、CXL 均可经内核映射为 NUMA 节点（`daxctl --mode=system-ram`）[5]，CXL-ready | 本地 NVMe，默认 DRAM:NVMe = 1:1、上限 4 TB [1] | Proxmox 介质更开放，但缺默认配比与护栏 |
-| 透明性与易用性 | 需手工调内核与 sysfs（`demotion_enabled`、`numa_balancing=2` 等）[5]，无图形化开关 | 图形化管理、默认关闭、启用需维护模式 [1] | VMware 开箱易用，Proxmox 门槛高——**核心差距** |
-| 观测与迁移策略 | DAMON 可自调优冷热阈值、按压力迁移 [7]；但需自行拼装 | 平台内建分层与放置，运维侧集成度高 [1] | Proxmox 有先进引擎，缺统一观测与策略面 |
-| 生态与集成 | 开源、KVM/Linux 原生、社区驱动；分层能力随内核演进 | 企业生态、厂商联合验证（如 Lenovo 出具 ESXi 9.0 实施指南）[3] | VMware 有验证背书，Proxmox 靠社区 |
-| 成本与授权 | 开源 AGPLv3，订阅仅为企业源与支持 | 商业授权（Broadcom 订阅） | Proxmox 无授权锁定，天然 TCO 优势 |
-| 成熟度 | 内核分层已上游化，但产品化程度参差 | Memory Tiering 8.0U3 为 Tech Preview [2]，9.0/9.1 起 GA [1] | VMware 特性刚 GA、较新；两者都在早期 |
+| NVMe 通路机制 | **被动 swap/zswap**（`swappiness`、zswap、`memory.swap.max`），无主动分层引擎 [5][12] | **主动** hypervisor 分层：DRAM Tier0 + 本地 NVMe Tier1，默认 1:1、每分层分区上限 4 TB，默认关闭、启用需维护模式 [1] | **机制差距（非包装差距）**：NVMe 上 Proxmox 落后，被动 swap 尾延迟劣于主动分层 |
+| CXL 通路机制 | **主动 NUMA 分层**：TPP、DAMON 迁移、加权交织 [5][6][7]（内核 6.14 具备）[15] | 当前**未见** CXL 原生分层（仅本地 NVMe）[1] | **Proxmox 领先**，但生产级 CXL 硬件早期 |
+| 慢层介质 | NVMe（swap）、PMem/CXL（NUMA）；CXL-ready | 本地 NVMe（GA）[1] | Proxmox 介质更开放、面向 CXL |
+| 透明性/易用性 | 需手工 sysfs/内核调优，无图形化 [5] | 图形化管理、默认配比与护栏 [1] | VMware 开箱易用——近期核心短板 |
+| 热迁移与集群协同 | QEMU 热迁移需读回全部 guest RAM，慢层页需换入，迁移时间/带宽受损；集群缺分层感知调度 | vMotion/DRS/HA **分层感知** [1] | **VMware 明确护城河**，Proxmox 未解 |
+| 大页/THP 交互 | 1 GiB 大页实际不可分层、THP 需拆分；大 VM 可能得不到分层 | vmkernel 层透明处理大页 guest | Proxmox 需明确护栏，属未解风险 |
+| 故障域与安全 | swap 落盘**明文**需 dm-crypt；慢层设备故障可致 guest 崩；跨 VM 侧信道/带宽噪声未治理 | 平台级处理，文档列明限制 [1] | Proxmox 侧需补齐（部分可查、部分待测）|
+| 观测与策略 | DAMON 可自调优 [7]，但需自行拼装、无按 VM 策略面 | 平台内建 [1] | 有先进引擎、缺产品化策略面 |
+| 生态与验证 | 开源、KVM/Linux 原生、社区；厂商验证少 | 企业生态、厂商联合验证（如 Lenovo ESXi 9.0 指南）[3] | VMware 有背书 |
+| 成本与授权 | 开源 AGPLv3，订阅仅企业源与支持 | 商业订阅（Broadcom）[13] | Proxmox 无按核授权，TCO 顺风 |
+| 成熟度 | CXL 分层随内核，NVMe 仅 swap；产品化早期 | NVMe 分层 8.0U3 为 Tech Preview [2]，9.1+ 起要求见 [1]（具体 GA 版本以 [1] 为准）| 两者都新，各有短板 |
 
-一句话概括：**Proxmox 缺的不是分层"引擎"，而是 VMware 已经补上的那层"产品化"**——图形化开关、
-默认配比与护栏、统一观测与 VM 级策略、以及厂商验证。这恰好指向价值最高的着力点。
+一句话：**NVMe 上 Proxmox 是机制落后，CXL 上 Proxmox 是产品化落后但引擎领先。** 因此"超越"不能靠在
+NVMe 上硬追 VMware，而要换战场。
 
-## 五、行动路线（价值筛选）
+## 五、如何超越：超越论点
 
-先用四维打分（价值/投入/风险/证据强度）为候选项定优先级，主指标是价值密度 = 价值 / 投入，
-风险下调、证据不足者搁置（方法见 `../../value-realization-model.md`）。分值为基于上文证据的
-工程判断（属个人分析，非实测）。
+**结论先行的反面**——超越论点是全报告的落点，故此处点明，论证已在前四节展开：
 
-| 候选行动项 | 对应差距 | 价值 | 投入 | 风险 | 证据强度 | 价值密度 | 结论 |
+**Proxmox 不靠在 NVMe 上照抄 VMware，而靠换到四条 VMware 结构上难以跟随的战线，并卡准时机窗口。**
+
+1. **CXL 原生分层领先**：内核是 CXL-first，Proxmox 9 已具主动分层引擎；VMware 当前仅本地 NVMe [1]。
+   当 CXL Type-3 内存与内存池化落地，Proxmox 可**先于** VMware 提供 CXL 原生分层——这是最硬的技术
+   超越点（非追赶）。
+2. **自调优 + 可观测**：以 DAMON + DAMOS 的 SLO 目标策略（采纳 MDK [8]）做自适应冷热，减少人工。
+3. **开源自主可控**：源码可审计、无境外单一厂商授权/断供风险——VMware **结构上无法对标**，在信创/
+   公共部门是决定性差异化。
+4. **无按核授权的 TCO**：把 Broadcom 涨价的经常性账单，换成一次性迁移 + 更便宜的慢层介质 [13]。
+
+**时机窗口（why now）**：三股力量在同一 18 个月窗口叠加——Broadcom 2024-01 终止永久授权、转订阅、
+一度停免费 ESXi，驱动**在途迁移潮** [13]；2025–2026 DRAM 价格大涨使分层 ROI 处于周期高点 [9][10]；
+内核分层随 PVE 9（6.14）成熟 [15]。错过则难民被 Nutanix/OpenShift Virtualization/XCP-ng/Harvester
+等 KVM 同类抢走。
+
+**近期务实打法**：NVMe 通路承认打不过 VMware 的主动分层，就把它定位成"**够用且更便宜的密度补充**"
+（swap/zswap 调优 + 护栏 + GUI），服务成本敏感与边缘；把"超越"押在 CXL 原生 + 开源自主可控上。
+
+## 六、行动路线（价值筛选）
+
+评分改用带锚点的 rubric（消除 v2 "武断打分"问题）：**投入**按工程人周（1=<2 周、3≈2 月、5=>6 月）；
+**价值**绑第零节目标（5=同时推动密度与 TCO 且构成对 VMware 的差异化）；**风险**（越高越险）；**证据**
+按来源等级（5=厂商文档+可复现，2=推断）。优先级 = 价值 × (证据/5) ÷ (投入 × 风险系数)，算式显式。
+
+| 候选项 | 通路 | 价值 | 投入 | 风险 | 证据 | 优先级 | 结论 |
 |---|---|---|---|---|---|---|---|
-| 内核分层调优模板（TPP+DAMON+加权交织）| 透明性、观测 | 4 | 2 | 2 | 4 | 2.0 | MVP 候选 |
-| PVE 集成与 VM 级策略/图形化开关 | 易用性、机制 | 5 | 3 | 3 | 4 | 1.7 | MVP 候选 |
-| 慢层介质护栏与默认配比 | 介质、易用性 | 4 | 2 | 2 | 3 | 2.0 | MVP 候选 |
-| CXL 池化与内存解耦 | 机制、前沿 | 5 | 5 | 4 | 3 | 1.0 | 远期 |
-| 对象级布局优化（借鉴 OBASE）| 前沿、效率 | 3 | 5 | 4 | 2 | 0.6 | 搁置待实证 |
+| swap/zswap 调优模板 + 护栏 + GUI | NVMe | 3 | 2 | 2 | 4 | 3×0.8÷(2×1.2)=1.0 | **MVP 近期切片** |
+| VM 级策略（cgroup/mempolicy）+ API/GUI | 双 | 4 | 3 | 3 | 3 | 4×0.6÷(3×1.4)=0.57 | 中期 |
+| CXL 原生分层 + DAMOS SLO 策略 | CXL | 5 | 4 | 4 | 3 | 5×0.6÷(4×1.6)=0.47 | **超越核心，分期** |
+| 集群分层感知调度 + 热迁移协同 | 双 | 4 | 5 | 4 | 3 | 4×0.6÷(5×1.6)=0.30 | 远期 |
 
-据此排期：
+近期 MVP 取**最小、证据最强、可独立交付**的 swap 调优 + 护栏 + GUI 切片（它是"够用密度"的落脚点，
+也为 VM 级策略与 CXL 铺路）；CXL 原生分层是**超越核心**，作为战略分期投入。里程碑（自 2026-10 起）：
 
 ```mermaid
 gantt
-    %% Proxmox 内存分层行动路线
+    %% Proxmox 内存分层行动路线（自 2026-10 起）
     title 内存分层行动路线（Roadmap）
     dateFormat YYYY-MM
-    section 近期（Near Term）
-    内核分层调优模板（TPP 与 DAMON） :a1, 2026-01, 2M
-    慢层护栏与默认配比（Guardrail） :a2, after a1, 1M
-    section 中期（Mid Term）
-    PVE 集成与 VM 级策略（Integration） :a3, after a2, 4M
-    section 远期（Long Term）
-    CXL 池化与内存解耦（Disaggregation） :a4, after a3, 6M
+    section 里程碑（Milestones）
+    M1 swap 分层调优模板与护栏加 GUI（NVMe） :m1, 2026-10, 2M
+    M2 VM 级策略 cgroup 与 API（双通路） :m2, after m1, 3M
+    M3 CXL 原生分层与 DAMOS SLO 策略 :m3, after m2, 4M
+    M4 集群分层感知与热迁移协同 :m4, after m3, 3M
 ```
 
-## 六、最优价值 MVP 架构设计
+每个里程碑的交付物、进出准则与 benchmark 门见下表（节选 M1）：M1 交付"文档化的 sysctl/daxctl 调优
+profile + ansible 角色 + GUI 开关"；退出准则=benchmark 配置 B 通过门（P99 增幅 ≤ 约定阈值、介质单价
+降 ≥ 20%）；依赖=无；后继门控 M2。
 
-MVP 取自上表价值密度最高、风险可接受、证据扎实的最小切片：**在 Proxmox 上，把 Linux 内核已有的
-分层引擎"产品化"为一个可开关、可观测、带默认护栏的内存分层管理层**。它不是重造引擎，而是补上
-VMware 用来拉开差距的那层易用性与运维性——这也正是"消化吸收开源实现（内核 TPP/DAMON）、只做
-增量"的最优价值路径。
+## 七、最优价值 MVP 架构设计
 
-> 关于开源实现的吸收：本方向的关键实现（内核 TPP、DAMON、加权交织）均为开源，最有效的"逆向
-> 分析"是源码与机制级研读（sysfs 开关、NUMA/`daxctl` 表示、降级/提升路径）[5][6][7]，无需二进制
-> 逆向；reverse-skill 的二进制工具链在此不适用，留待遇到闭源固件/驱动时再启用（见过程记录）。
+MVP=把 Proxmox 已有/内核已有的能力**产品化**为可开关、可观测、带护栏、可按 VM 的分层管理层，**双
+通路分别落地**（纠正 v2 把 TPP/DAMON 画在 NVMe 上的错误）。
 
-架构图刻画分层管理层的模块层次与依赖：
+具体 Proxmox 集成点（消除"空盒子"）：
+- **控制面**：`pve-manager`（ExtJS）加分层开关与默认配比面板，后端新增 `PVE::API2` 端点；按 VM 策略
+  以新键写入 `/etc/pve/qemu-server/<vmid>.conf`（如 `memtier: track=nvme-swap,ratio=1:1,cap=...`），由
+  `PVE::QemuServer` 解析。
+- **执行路径（按通路择一并写清）**：NVMe 通路用 cgroup v2 对 `qemu.slice/<vmid>.scope` 设
+  `memory.high`/`memory.swap.max` + zswap 参数；CXL 通路用 QEMU `memory-backend-ram host-nodes=` +
+  guest `-numa`，或对 QEMU PID `mbind`/`set_mempolicy2`，并接内核 TPP/DAMON。
+- **守护进程 I/O 契约**：读 `/sys/kernel/mm/damon/admin/`（`tried_regions`/统计）与 `/proc/pressure/
+  memory`；写 DAMOS 方案参数与 per-scope cgroup 上限。按 VM 策略优先建于在研的"分层感知内存 cgroup"
+  [12]（未合入则以 `memory.swap.max` + 加权交织回退，风险显式）。
+
+两条通路（纠正后的机制图）：
 
 ```mermaid
 graph TD
-    %% 图例置顶，技术场景专业配色
+    %% 两条分层数据通路：机制不同，分别评估
     subgraph LG[图例（Legend）]
-        L1[管理与界面（Mgmt）]:::mgmtCls
-        L2[策略与观测（Policy）]:::polCls
-        L3[内核机制（Kernel）]:::kerCls
-        L4[分层介质（Media）]:::medCls
+        LSWAP[被动 swap 通路（Reactive）]:::swapCls
+        LNUMA[主动 NUMA 分层（Proactive）]:::numaCls
     end
-    subgraph UI[管理层 · PVE 集成]
-        A1[分层开关与默认配比（UI）]:::mgmtCls
-        A2[VM 级策略（Per-VM Policy）]:::mgmtCls
+    G[Guest 内存（Guest RAM）]:::hostCls
+    subgraph NV[NVMe 慢层 · 被动 swap]
+        S1[缺页触发（Fault）]:::swapCls
+        S2[zswap 或 zram 前端（Compress）]:::swapCls
+        S3[写出到 NVMe swap（Pageout）]:::swapCls
+        S1 --> S2 --> S3
     end
-    subgraph POL[策略与观测层]
-        B1[冷热观测（DAMON）]:::polCls
-        B2[配比与迁移策略（Weighted Interleave）]:::polCls
+    subgraph CX[CXL 或 PMem 慢层 · 主动 NUMA]
+        C1[访问采样（DAMON）]:::numaCls
+        C2[冷页降级（Demotion）]:::numaCls
+        C3[热页提升（Promotion）]:::numaCls
+        C1 --> C2
+        C1 --> C3
     end
-    subgraph KER[Linux 内核分层引擎]
-        C1[透明页放置（TPP）]:::kerCls
-        C2[降级与提升（Demotion and Promotion）]:::kerCls
-    end
-    subgraph MED[分层介质]
-        D1[快层（DRAM）]:::medCls
-        D2[慢层（NVMe 或 CXL）]:::medCls
-    end
-    UI --> POL
-    POL --> KER
-    KER --> MED
-    classDef mgmtCls fill:#ede9fe,stroke:#5b21b6,color:#4c1d95;
-    classDef polCls fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
-    classDef kerCls fill:#dcfce7,stroke:#166534,color:#14532d;
-    classDef medCls fill:#fef3c7,stroke:#92400e,color:#78350f;
+    G --> S1
+    G --> C1
+    classDef swapCls fill:#fee2e2,stroke:#991b1b,color:#7f1d1d;
+    classDef numaCls fill:#dcfce7,stroke:#166534,color:#14532d;
+    classDef hostCls fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
 ```
 
-部署图刻画单个 Proxmox 节点上的组件、介质与运行时关系：
+CXL 通路的真实控制环（DAMON 自调优，替代 v2 的通用层叠图）：
+
+```mermaid
+flowchart LR
+    %% DAMON 自调优控制环（CXL/PMem 主动分层）
+    K1[kdamond 采样 QEMU 地址空间（Sampling）] --> K2[按区域聚合访问频次（nr_accesses）]
+    K2 --> K3[DAMOS 方案匹配 冷热与年龄（Scheme）]
+    K3 --> K4[MIGRATE_COLD 降级到 CXL 节点（Demote）]
+    K3 --> K5[MIGRATE_HOT 提升到 DRAM（Promote）]
+    K4 --> K6[配额与 SLO 反馈门（Quota and PSI）]
+    K5 --> K6
+    K6 --> K1
+```
+
+按 VM 策略如何落到进程与介质（部署/机制）：
 
 ```mermaid
 graph LR
-    %% 图例置顶
+    %% 每 VM 策略如何落到进程与介质
     subgraph LG[图例（Legend）]
-        LN[物理节点（Node）]:::nodeCls
-        LC[运行组件（Component）]:::compCls
+        LC[控制面（Control）]:::ctlCls
+        LD[数据面（Data）]:::datCls
     end
-    subgraph N1[Proxmox 节点（PVE Host）]
-        P1[管理界面（Web UI）]:::compCls
-        P2[分层守护进程（Tiering Daemon）]:::compCls
-        P4[内核分层（TPP 与 DAMON）]:::compCls
-        P3[KVM 虚拟机（Guests）]:::compCls
-        P1 --> P2
-        P2 --> P4
-        P3 --> P4
+    subgraph CTRL[控制面 · Proxmox 集成]
+        A1[PVE API2 与界面（pve-manager）]:::ctlCls
+        A2[VM 配置键 memtier（qemu-server）]:::ctlCls
+        A3[分层守护进程（Tiering Daemon）]:::ctlCls
+        A1 --> A2
+        A2 --> A3
     end
-    subgraph MEM[本地分层介质]
-        M1[快层 DRAM（Tier 0）]:::compCls
-        M2[慢层 NVMe 或 CXL（Tier 1）]:::compCls
+    subgraph DATA[数据面 · 进程到介质]
+        Q1[QEMU 进程（qemu.slice 作用域）]:::datCls
+        Q2[cgroup v2 与 mempolicy（swap.max 或 mbind）]:::datCls
+        Q3[快层 DRAM（Tier 0）]:::datCls
+        Q4[慢层 NVMe-swap 或 CXL 节点（Tier 1）]:::datCls
+        Q1 --> Q2
+        Q2 --> Q3
+        Q2 --> Q4
     end
-    P4 -->|页放置与提升| M1
-    P4 -->|冷页降级| M2
-    classDef nodeCls fill:#e0e7ff,stroke:#3730a3,color:#312e81;
-    classDef compCls fill:#f1f5f9,stroke:#334155,color:#0f172a;
-    class N1,MEM nodeCls;
+    A3 --> Q2
+    classDef ctlCls fill:#ede9fe,stroke:#5b21b6,color:#4c1d95;
+    classDef datCls fill:#f1f5f9,stroke:#334155,color:#0f172a;
 ```
 
-设计要点：管理层把"开关、默认配比、VM 级策略"暴露为一等能力（补齐 Proxmox 最大短板）；策略与
-观测层用 DAMON 做自调优冷热判定、用加权交织平衡带宽与容量；内核层直接复用 TPP 的降级/提升，不
-重造轮子；介质层同时支持 NVMe 与 CXL，为远期解耦内存留好接口。
+## 八、业务规划
 
-## 七、MVP 价值兑现
+**定位**：不与 VMware 拼 NVMe 分层特性，而以"开源自主可控 + CXL 原生就绪 + 无按核授权"承接 Broadcom
+迁移潮，并与其他 KVM 同类（Nutanix/OpenShift Virtualization/XCP-ng/Harvester）竞速。
 
-### 产品 FAB 与价值链
+具名买家段与打法（先难民潮 + 信创，后 CSP）：
 
-价值兑现是一条可追溯的价值链：特性 → 优势 → 客户利益 → 客户 KPI → 控标差异化，每环溯回差距与
-证据。
+| 买家段 | 待办任务（JTBD） | 主价值杠杆 | GTM 次序 |
+|---|---|---|---|
+| Broadcom 迁移难民（中端企业）| 逃离续费又不丢能力 | GUI 一键 + 迁移安全 + 无按核订阅 [13] | 第一（最大、最紧迫）|
+| 公共部门/信创 | 自主可控、capex 受限 | 开源可审计 + 规避断供 + 已有硬件多装载 | 第一（差异化最硬）|
+| CSP/托管 | 密度换毛利 | 每 VM 成本、多租户 P99 隔离、自调优 | 第二 |
+| 边缘/电信 | DRAM 紧张小节点多装载 | 小节点 NVMe-swap 密度 | 第三 |
 
-| 特性（Feature） | 优势（Advantage） | 客户利益/业务结果（Benefit） | 对应客户 KPI 或任务 | 追溯（差距与证据） | 控标差异化点 |
-|---|---|---|---|---|---|
-| 图形化分层开关与默认配比 | 无需手工调内核即可启用 | 部署与运维门槛大降 | 上手时间、变更风险 | 易用性差距 [1][5] | 开源平台的开箱内存分层 |
-| DAMON 自调优 + 加权交织 | 冷热自适应、带宽/容量兼顾 | 慢层拖累更小、密度更高 | 慢层命中率、SLO | 观测/策略差距 [6][7] | 自调优分层策略 |
-| NVMe 与 CXL 双支持 | 面向未来的介质开放性 | 平滑演进到 CXL/解耦内存 | 介质成本、演进路径 | 介质差距 [5] | CXL-ready、无介质锁定 |
-| 开源 AGPLv3、无授权锁定 | 无 per-host 授权成本 | 每 GB 内存 TCO 更低 | 内存 TCO、许可成本 | 成本/授权差距 | 无厂商锁定的成本优势 |
+**定价**：核心能力开源（AGPLv3），企业订阅=源码+支持+验证，锚定"比 Broadcom 续费便宜且可预期"。
+**设计伙伴**：各段签 1–2 家，用其数据把估算变实测（见第十节），并作为验证背书补齐生态短板。
+**护城河**：CXL 原生 + 自主可控是对 VMware 的结构性差异；对 KVM 同类，护城河是 Proxmox 装机量 +
+一体化管理 + 更快贴内核上游。
+
+## 九、MVP 价值兑现
+
+### 产品 FAB 与价值链（按买家段，落到买家的钱）
+
+| 买家段 | 特性（Feature） | 优势（Advantage） | 客户利益（买家货币）| 追溯 |
+|---|---|---|---|---|
+| CSP | DAMON 自调优 + 按 VM 策略 | 冷热自适应、多租户隔离 | 每宿主多装 VM、内存 $/VM 下降、租户 P99 可观测 | 观测/策略差距 [7] |
+| 难民 | GUI 一键分层 + 迁移路径 | 无需手工内核调优 | 把 Broadcom 涨价的经常性账单换成一次性迁移，密度不降级 | 易用/授权差距 [13] |
+| 信创 | 开源可审计 + CXL-ready | 自主可控、面向未来 | 已有硬件多装载、规避断供、合规达标 | 成本/自主可控差距 |
 
 ### 客户语言的价值
 
-对客户可以这样讲：**用一块本地 NVMe（或未来的 CXL 内存），在不加同等 DRAM 的前提下把单机能装下
-的虚拟机数量做上去，把每台机器的内存账单压下来；冷数据自动沉到慢层、热数据留在 DRAM，关键业务
-的响应不受明显影响。** 与 VMware 相比，同样的分层收益，却没有按主机计费的授权账单，也不被单一
-厂商锁定。
+对难民买家：*"用一块本地 NVMe 把单机多装约一档 VM，内存账单下来一截；升级到 PVE 9 后冷数据自动
+沉到慢层——只是要说清：NVMe 走的是智能 swap，尾延迟不如 VMware 的主动分层，适合冷数据多的负载；
+真正拉开身位的是 CXL 原生分层与开源自主可控。"*（诚实区分通路，避免过度承诺。）
 
-### 价值度量与目标（基于公开材料的估算）
+### 控标经典案例与差异化条款
 
-无本地实测环境，故目标值采用**基于可核验公开材料的事实推断（估算）**，并标注来源与推导；基线不必
-自测，可取自厂商与第三方数据。所有数字均为估算，随实际配比、负载与市价波动。
+真实**案例**：**无法确定**（未检索到 Proxmox 内存分层的可核验招投标案例，不杜撰）。但**招标差异化
+条款语言**不是事实断言、不构成幻觉，故据实给出（标注为**建议表述，须结合真实招标校准**）：
 
-| 价值假设 | 指标 | 目标/预估（估算） | 依据与推导 |
+- 内核原生：*"内存分层须由操作系统内核态原生机制实现，开源可审计，投标方须提供内核版本与机制
+  （透明页放置、访问监控、加权交织）说明及社区提交记录。"*
+- CXL-ready：*"慢层须支持经标准 NUMA/DAX 将 CXL Type-3 内存映射为系统内存层；策略与介质解耦，不得
+  锁定单一慢层介质。"*
+- 自调优可观测：*"冷热判定须支持基于实际访问的自适应，并可导出页级/层级统计供容量规划。"*
+- 无授权锁定：*"核心虚拟化与分层能力不得依赖按主机/按核订阅解锁；授权到期平台须可继续运行。"*
+- 自主可控/供应链：*"平台须开源、源码可获取可审计，关键能力可脱离单一境外商业厂商授权与支持持续
+  演进，规避断供风险。"*
+
+### 异议应答（预置弹药）
+
+| 买家异议 | 应答 |
+|---|---|
+| "手工调优、无 GUI" | 正是 MVP 内容：GUI 开关 + 默认护栏随 M1/M2 交付，差距在收敛 |
+| "无生产成熟度数据" | 用设计伙伴 benchmark（第十节）作证据生成，并公布结果；内核机制已在生产内核 |
+| "无担责厂商/SLA" | 提供 AGPLv3 企业订阅（源码+支持）；反问："刚给你涨价的'担责厂商'，担责保住你的预算了吗？" |
+
+### 价值度量与可证伪假设（分通路）
+
+| 假设 | 先导指标 | 滞后指标 | 通路差异 |
 |---|---|---|---|
-| 慢层安全扩容不伤 SLO | 关键负载 P99 延迟增幅 | 冷热分明负载约 <10%；均匀热负载可能显著劣化 | DAMON 高压下损失约 3–5% [7]；NVMe 为 µs 级、仅宜承载冷页，热集中度决定成败 |
-| 降低内存 TCO | 内存子系统每 GB 成本 | 1:1 配比下约 −40%〜−45% | 按 (0.5×1 + 0.5×r) 推导，NVMe 每 GB 约为 DRAM 的 r≈1/5〜1/10 [9][10]，2025–2026 DRAM 大涨使差距更大 |
-| 提升密度 | 单机可用内存与 VM 密度 | 约 +80%〜+100%（1:1，内存受限整合） | VMware 称 1:1 可增可用内存足迹 [1]；工作集须基本命中 DRAM |
-| 易用性达标 | 启用上手时间 | 由手工内核调优的"数小时"降到图形化的"分钟级" | Proxmox 现状需手工 sysfs [5]，VMware 为图形化开关 [1] |
+| 慢层安全扩容不伤 SLO | 慢层访问占比、迁移/换入开销 | 关键负载 P99 | NVMe 看 `pswpin/out`、PSI；CXL 看 `pgdemote/pgpromote`、promotion-rate |
+| 降介质成本、提密度 | 可超分比例 | 介质单价降幅、VM 密度 | 两通路分别核 |
 
-> 估算方法透明：TCO 给出公式与成本比来源，性能给出机制与来源，均不冒充实测。真实取值仍需下面的
-> 对比测试确认。
+**可证伪 MVP 假设 + kill-gate**：*"难民/信创段会采用，因为密度+TCO 且无授权账单；若设计伙伴在 Q1 内
+达到 启用 <30 分钟 且 冷热分明负载下慢层导致的 P99 增幅 < 15%（NVMe）/ < 10%（CXL）、密度 ≥ +50%，
+则加倍投入；若 P99 增幅 > 25% 或密度 < +30%，则收缩为 CSP-only 或止损。"*（阈值待基线校准，见第十节。）
 
-### 对比测试设计（意图与预估）
+## 十、对比测试设计（意图与预估）
 
-**意图**：在真实环境验证上表两条核心假设（慢层不伤 SLO、降 TCO 与提密度），并划出适用与不适用
-负载的边界。基线取"纯 DRAM"与"厂商/文献数据"双重参照——**基线不限于自测**。
+**意图**：把上文估算变实测，验证两条价值假设，划出适用/不适用边界。基线取"纯 DRAM"**与文献**双参照
+（基线不限自测）。可执行方案与脚本见 [benchmark-plan.md](benchmark-plan.md) 与 [scripts/](scripts/)。
 
-| 配置 | 说明 | 作用 |
-|---|---|---|
-| A 纯 DRAM | 无分层 | 基线 |
-| B DRAM+NVMe 1:1 | Proxmox + 内核 TPP/DAMON | 主验证 |
-| C DRAM+NVMe 1:2 | 更大慢层 | 配比敏感性 |
-| D DRAM+CXL 1:1 | 以 CXL 作慢层 | 介质对比（可选） |
-| 参照 VMware | 同硬件同配比 | 外部对照（可选） |
+要点（纠正 v2 不可执行问题）：真实负载命令（如 `memtier_benchmark --key-maximum=... --ratio=1:4
+--data-size=1024 --test-time=300`、`db_bench --benchmarks=readrandom`）；**用 cgroup `memory.high` 或
+host `mem=` 压低 DRAM 逼出分层**（否则工作集全驻内存）；**B(1:1) 与 C(1:2) 真正改配比**；**按 VM 采集**
+（`qemu.slice/<vmid>.scope/memory.stat`、per-PID 计数）；**NVMe 用 swap 计数器、CXL 用降级/提升+
+promotion-rate（MDK）**；增设**热迁移**与 **THP 开/关**两个维度；数值化 SLO 门。
 
-- **负载**：冷热分明（大缓存加长尾冷数据，如 RocksDB/Redis）、均匀热或随机（反例）、超分场景（多台
-  VM 叠加）。
-- **指标**：P99/P999 延迟、吞吐、慢层访问占比、迁移 CPU 开销、单机 VM 密度、每 GB 成本。
-- **方法**：固定负载、变分层配置、对照 A 与文献基线，多轮取中位。
-- **预估结果**（据锚点，属预估非实测）：
-  - B vs A（冷热分明）：密度约 +80%〜+100% [1]；P99 增幅个位数至低两位数 %（冷页多、热命中 DRAM
-    时）[7]；内存成本约 −40%〜−45% [9][10]。
-  - B vs A（均匀热或随机）：预估 P99 显著上升（NVMe µs 级延迟），作为不适用边界。
-  - D vs B：CXL 延迟约为本地 DRAM 的 2 倍（约 250ns 对 130ns）[11]，远优于 NVMe，但成本更高、
-    生态更早期。
+预估（据锚点，属预估非实测，逐条可证伪）：
+- NVMe B vs A（冷热分明）：介质单价降约 40%–45%（1:1，按 (0.5+0.5r)、r≈1/5–1/10 [9][10]，注：为**介质
+  采购单价**非全 TCO，未含电力/磨损/CPU/性能损失，且为消费级价格，企业级比值不同）；密度**理论上限
+  +100%（1:1）**、实际受"热工作集须命中 DRAM"约束显著更低（[1] 仅支持方向，不含具体数值）；P99 由
+  NVMe µs 级换入主导，**无法用 [7] 的 CXL 数值推断，留待实测**。
+- NVMe B vs A（均匀热/随机）：预估 P99 方向性显著上升（幅度无法确定），列为不适用边界。
+- CXL D vs B：CXL 延迟据 [11] 为 140–410 ns（经 CXL 交换机可达约 600 ns）、**尾延迟高**，约为本地
+  DRAM 的 2–4 倍（DRAM 基线约 50–100 ns）；[7] 的"11%→3–5%"是 Redis/YCSB 在 CXL 慢层的**执行时间**
+  减速（非 P99），仅作 CXL 行的方向性参考。
 
-> 可执行方案与采集脚本见 [benchmark-plan.md](benchmark-plan.md) 与 [scripts/](scripts/)。注意机制
-> 差异：NVMe 慢层在 Linux 上走 swap/zswap，CXL 慢层才是内核内存分层，二者分别评估。
+## 十一、结论与投资建议
 
-### 控标经典案例
+**结论（最终答案）**：Proxmox 在内存分层上**超越** VMware，不是在 NVMe 上追平其主动分层（那是机制
+劣势），而是换战场——**以 CXL 原生分层（骑内核上游、VMware 目前没有）+ 开源自主可控（VMware 结构上
+无法对标）+ 无按核授权的 TCO**，卡准 Broadcom 迁移潮与 DRAM 涨价窗口取胜；NVMe 通路以"更便宜的够用
+密度"作近期滩头，诚实不过度承诺。
 
-**无法确定。** 未检索到 Proxmox 内存分层相关、可公开核验的招投标"控标"案例（这类开源基础设施
-通常不以招投标控标形式留存公开案例）。因此此处不杜撰客户、项目或金额。可作为招标差异化表述的
-**能力点**（中性、合规）包括：开源无授权锁定、CXL-ready 的介质开放性、自调优分层策略；但是否
-构成有效控标点，需结合具体招标与真实成功案例再定，当前不下结论。
+**投资建议**：
+- **决策**：投。近期 2 个季度小队（M1+M2，约合前表投入 2–3 档）先做 swap 调优+护栏+GUI 与 VM 级策略，
+  **先打难民 + 信创**；CXL 原生（M3）作为超越核心分期投入。
+- **预期回报**：难民段=把 Broadcom 续费差额转为一次性迁移；信创段=自主可控合规 + 硬件多装载；CSP=
+  每 VM 成本与密度。
+- **决策门（约第 3 个月）**：设计伙伴达到上文 kill-gate 阈值则加倍并推 GA+验证背书；否则收缩或止损。
+- **不投的代价**：把迁移难民与信创窗口让给 Nutanix/XCP-ng/OpenShift Virtualization/Harvester，并错过
+  DRAM 高价周期的分层 ROI。
 
-## 八、结论
-
-把七个维度收束到一句话：**在内存分层方向，Proxmox 与 VMware 的差距不在"引擎"，而在"产品化"。**
-分层引擎层面，Linux 内核的 TPP、DAMON、加权交织等开源机制已经可用，Proxmox 天然继承 [5][6][7]；
-真正被 VMware 拉开的，是图形化开关、默认配比与护栏、统一观测与 VM 级策略，以及厂商验证背书
-[1][3]——而这些恰恰是投入产出比最高的补齐点。
-
-因此最优价值的 MVP，不是去重造分层引擎，而是**在 Proxmox 上把内核已有的分层能力"产品化"成一个
-可开关、可观测、带护栏的管理层**，以"更低 TCO、更高密度、无授权锁定"为价值主张，用先导/滞后
-指标验证兑现。至于 CXL 池化与内存解耦，是与学术前沿一致的战略方向 [8]，但投入大、风险高，宜放
-远期。最终价值仍需真实负载与市场检验——本报告给出的是有据可依的投入判断，而非结论性承诺。
+真实价值仍需第十节实测检验；本报告给出的是有据可依、且已修正机制错误的投入判断与超越路径，而非
+结论性承诺。
 
 ## 参考资料
 
-[1] Broadcom TechDocs — Memory Tiering over NVMe（vSphere 9.1，vSphere Resource Management）. https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere/9-1/vsphere-resource-management/memory-tiering-over-nvme.html
-[2] VMware Cloud Foundation Blog — vSphere Memory Tiering, Tech Preview in vSphere 8.0U3（2024-07-18）. https://blogs.vmware.com/cloud-foundation/2024/07/18/vsphere-memory-tiering-tech-preview-in-vsphere-8-0u3/
+> 来源分级：独立核验来源正常引注；[8] 为**用户提供、未独立核验**。消费级价格 [9][10] 波动大、仅作
+> 数量级参考，企业级比值不同。
+
+[1] Broadcom TechDocs — Memory Tiering over NVMe（vSphere 9.1）. https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere/9-1/vsphere-resource-management/memory-tiering-over-nvme.html
+[2] VMware Cloud Foundation Blog — Memory Tiering Tech Preview（vSphere 8.0U3，2024-07-18）. https://blogs.vmware.com/cloud-foundation/2024/07/18/vsphere-memory-tiering-tech-preview-in-vsphere-8-0u3/
 [3] Lenovo Press — Implementing Memory Tiering over NVMe using VMware ESXi 9.0. https://lenovopress.lenovo.com/lp2288-implementing-memory-tiering-over-nvme-using-vmware-esxi-90
-[4] Proxmox VE Wiki — Dynamic Memory Management（KSM、Ballooning）. https://pve.proxmox.com/wiki/Dynamic_Memory_Management
-[5] Steve Scargall — Using Linux Kernel Tiering with Compute Express Link (CXL) Memory（2024-05）. https://stevescargall.com/blog/2024/05/using-linux-kernel-tiering-with-compute-express-link-cxl-memory/
-[6] LWN.net — Weighted interleaving for memory tiering. https://lwn.net/Articles/948037/
+[4] Proxmox VE Wiki — Dynamic Memory Management. https://pve.proxmox.com/wiki/Dynamic_Memory_Management
+[5] Steve Scargall — Using Linux Kernel Tiering with CXL Memory（2024-05）. https://stevescargall.com/blog/2024/05/using-linux-kernel-tiering-with-compute-express-link-cxl-memory/
+[6] LWN.net — Weighted interleaving for memory tiering（内核 6.9）. https://lwn.net/Articles/948037/
 [7] LWN.net — DAMON based tiered memory management for CXL memory. https://lwn.net/Articles/978313/
-[8] 用户提供材料 — 内存分层背景综述，及 OSDI 2026 Day 1 Track 2 Session 1（RamRyder、MAC、NEMO、OBASE、MDK）会议整理（本对话内提供，未独立核验）。
-[9] Stanford DAM — Memory Prices（历史内存价格）. https://dam.stanford.edu/memory-prices.html
-[10] RAM vs SSD Price Trends（市场数据，波动大，仅作数量级参考）. https://rampricehistory.com/blog/ram-vs-ssd-price-trends-2026
-[11] Maruf 等 — Dissecting CXL Memory Performance at Scale（arXiv:2409.14317，CXL 相对本地 DRAM 延迟）. https://arxiv.org/pdf/2409.14317
-[12] LWN.net — Recent work in memory tiering（内核内存分层的现状与在研工作，2026-09）. https://lwn.net/Articles/1092001/
+[8] 用户提供材料 — 内存分层背景综述 + OSDI 2026 Day1 Track2 Session1（RamRyder/MAC/NEMO/OBASE/MDK），本对话内提供、未独立核验。
+[9] Stanford DAM — Memory Prices. https://dam.stanford.edu/memory-prices.html
+[10] RAM vs SSD Price Trends（消费级市场数据，波动大，仅作数量级参考）. https://rampricehistory.com/blog/ram-vs-ssd-price-trends-2026
+[11] Maruf 等 — Dissecting CXL Memory Performance at Scale（arXiv:2409.14317，CXL 140–410 ns、尾延迟）. https://arxiv.org/pdf/2409.14317
+[12] LWN.net — Recent work in memory tiering（截至 2026-09；pghot、分层感知 cgroup）. https://lwn.net/Articles/1092001/
+[13] The Register — Broadcom 终止 VMware 永久授权、转订阅、停免费 ESXi（2024）；另见 Broadcom KB 309138. https://www.theregister.com/2024/02/13/broadcom_ends_free_esxi_vsphere/
+[14] Tom's Hardware — Intel 结束 Optane 业务（2022-07，约 5.59 亿美元减值，因 CXL 转向）. https://www.tomshardware.com/news/intel-kills-optane-memory-business-for-good
+[15] Proxmox — Proxmox VE 9.0 发布（2025-08-05，Debian 13，默认内核 6.14）. https://www.proxmox.com/en/about/company-details/press-releases/proxmox-virtual-environment-9-0
+
+## 修订说明（v3，经四路评审）
+
+- 机制修正：NVMe=swap/zswap（非 TPP/DAMON；`daxctl` 不适用于 NVMe）；TPP/DAMON 降级=迁到 NUMA 层
+  （非写 NVMe）。图与话术全面纠正，分两通路。
+- 代次修正：对标改为 PVE 9.0（内核 6.14）对 vSphere 9.x [15]；加权交织(6.9)/DAMON 迁移(6.11) 仅 PVE 9 具备。
+- 数值修正：删除误用 [7] 的"P99<10%"；密度"+80–100%"改为"理论上限+100%、实际更低"，[1] 仅支持方向；
+  TCO 改称"介质采购单价降幅"并列明未含项与消费级价格局限；CXL 延迟改为 140–410 ns 区间 + 尾延迟。
+- 论点修正：NVMe 上是机制差距（非包装）；超越靠 CXL 原生 + 自主可控 + TCO + 时机，非追赶 NVMe。
+- 补齐维度：热迁移×分层、大页/THP、故障域/安全/vNUMA/KSM、why-now、具名买家段、控标条款语言、
+  异议应答、可证伪假设+kill-gate、投资建议、业务/技术双规划。
 
 ## 存疑与需确认
 
-以下为"价值阐述存疑/落地条件待确认"项，遵循带着问题去核实的原则，暂不下结论：
-
-- Proxmox 上 NVMe/CXL 分层的**生产可用性与运维成熟度**（稳定性、故障域、热插拔限制）需实测确认；
-  VMware 已明确列出多项限制 [1]，Proxmox 侧对应限制**无法确定**，需实验验证。
-- 学术热点中的 OSDI 2026 五篇为**用户提供材料** [8]，本报告未独立核验其发表状态与数据。
-- 价值度量目标为**基于公开材料的估算**（已标注来源与推导）；真实取值需按"对比测试设计"在实测中
-  确认，估算随配比、负载与市价波动。
-- 加权交织、DAMON 的具体性能收益随负载与硬件差异较大，本报告只引用来源的定性结论 [6][7]，未在
-  本环境复现。
+- **NVMe 引擎对等未成立**：Linux 上游无 NVMe 主动分层，Proxmox NVMe 侧仅被动 swap，与 VMware 主动
+  分层非对等；这是最需实测的落差。
+- 生产成熟度、故障域、热迁移惩罚、THP 交互：部分可查、部分**无法确定**，须按第十节实测。
+- 价值目标值为**基于公开材料的估算**（介质单价降幅可推、密度与 P99 待实测），企业级价格比值与非介质
+  TCO 分项未定。
+- [8] OSDI 材料未独立核验；[9][10] 为消费级价格。

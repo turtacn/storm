@@ -1,8 +1,8 @@
 # 对比测试执行方案 · Proxmox 内存分层
 
-本方案把 [report.md](report.md) 第五节的"对比测试设计"细化为**可直接执行**的基准测试：具体负载、
-参数矩阵、采集脚本与判定门，用于把报告里的**估算**在真实环境中验证为**实测**。脚本骨架在
-[`scripts/`](scripts/)。
+本方案把 [report.md](report.md) 第十节的"对比测试设计"细化为**可执行**的基准测试（脚本为骨架，负载
+命令按本文替换后即可运行）：具体负载、参数矩阵、采集脚本与数值化判定门，用于把报告里的**估算**在
+真实环境中验证为**实测**。脚本骨架在 [`scripts/`](scripts/)。
 
 > 安全与合规：仅在**专用测试主机**运行，勿在生产环境执行；改动系统状态的脚本默认不执行，需显式
 > 确认（见脚本内 `MTP_CONFIRM`）。所有命令随内核版本可能不同，以本机实际为准。
@@ -63,18 +63,31 @@
 - **冷热分明（利于分层）**：RocksDB `db_bench`（大数据集 + 偏斜读），或 Redis + `memtier_benchmark`
   （大 keyspace + 长尾冷 key），或 `YCSB` Zipfian 分布。
 - **均匀热/随机（反例边界）**：`stress-ng --vm` 随机访问，或指针追逐微基准，制造无冷热区分的压力。
-- **超分场景**：并发起 N 台 VM，各带工作集，总量 > DRAM，观察整体密度与尾延迟。
+- **超分场景**：逐台加 VM，直到任一 VM 破 P99 门或 host PSI-some 超阈值；此时 VM 数即密度。
+
+**必须逼出分层**（否则工作集全驻 DRAM、什么都不发生）：用 host `mem=` 或对 `qemu.slice/<vmid>.scope`
+设 `memory.high` 压低快层。示例命令（按机型调参）：
+- 冷热分明：`memtier_benchmark --key-maximum=50000000 --key-pattern=G:G --ratio=1:4 --data-size=1024 --test-time=300`；或 `db_bench --benchmarks=readrandom --num=... --cache_size=...`（设偏斜）。
+- 均匀热/随机：`stress-ng --vm N --vm-bytes 90% --vm-method all --timeout 300s`。
+- **配比落实**：B=1:1、C=1:2 必须真正改变 DRAM:慢层容量（在 `setup-tiers.sh` 落实），否则 B/C 同路。
+
+**新增两维**（reviewer 指出的决策关键）：**热迁移**——迁移一台约 50% 工作集在慢层的 VM，测停机
+时间与总迁移时长 vs 纯 DRAM；**THP 开/关**——1 GiB 大页实际不可迁移、THP 需拆分，测大页 guest 能否
+分层。
 
 ## 指标与采集
 
-| 指标 | 来源 |
-|---|---|
-| P99/P999 延迟、吞吐 | 负载工具自带输出 |
-| 慢层访问占比、迁移量 | `/proc/vmstat` 的 `pgdemote_*`、`pgpromote_success`、`numa_pages_migrated`（字段以本机为准）|
-| 内存压力 | `/proc/pressure/memory`（PSI）|
-| 每节点内存分布 | `numastat`、`/sys/devices/system/node/node*/meminfo` |
-| 迁移 CPU 开销 | 迁移相关内核线程 CPU 占用 |
-| 每 GB 成本 | 由配置容量与市价推算（见 report.md [9][10]）|
+| 指标 | NVMe-swap 通路来源 | CXL-NUMA 通路来源 |
+|---|---|---|
+| P99/P999 延迟、吞吐 | 负载工具输出 | 同左 |
+| 慢层活动 | `/proc/vmstat` 的 `pswpin`/`pswpout`、`pgscan`/`pgsteal` | `pgdemote_*`/`pgpromote_success`/`numa_pages_migrated`，及 **promotion-rate**（MDK 口径）|
+| 内存压力 | `/proc/pressure/memory`（PSI）| 同左 |
+| **按 VM** | `qemu.slice/<vmid>.scope/memory.stat`、per-PID 计数 | 同左 |
+| 迁移/换入 CPU | kswapd 与压缩线程 CPU | kdamond 与迁移线程 CPU |
+| 每 GB 介质单价 | 由容量与市价推算（[9][10]）| 同左 |
+
+> 关键（纠正 v2 错误）：NVMe 走 swap，`pgdemote/pgpromote` 恒为 0，必须看 `pswpin/out`；两套计数器
+> 不可混用。host 全局计数无法归因到某台 VM，故按 VM 采集是硬性要求。
 
 采集见 [`scripts/collect-metrics.sh`](scripts/collect-metrics.sh)（只读快照，安全）。
 
@@ -98,11 +111,11 @@ flowchart LR
 
 预估取自 report.md（据公开锚点，属预估非实测）；判定门是价值假设的通过标准：
 
-| 对比 | 预估 | 判定门（通过标准）|
+| 对比 | 预估（据锚点，非实测）| 判定门（数值化）|
 |---|---|---|
-| B vs A（冷热分明）| 密度约 +80%〜+100% [1]；P99 增幅个位数〜低两位数 % [7]；内存成本约 −40%〜−45% [9][10] | P99 增幅 ≤ 约定 SLO 阈值，且成本下降 ≥ 20% |
-| B vs A（均匀热/随机）| P99 显著上升（不适用边界）| 记录为不适用负载，不作达标要求 |
-| D vs B（CXL）| 延迟更友好（CXL 约为 DRAM 2 倍 [11]）| CXL 路径 P99 优于 NVMe-swap |
+| B vs A（冷热分明，NVMe）| 介质单价降约 40%–45%（估算 [9][10]）；密度理论上限 +100%、实际更低（[1] 仅支持方向）；P99 待实测（NVMe µs 级，勿用 [7]）| P99 增幅 ≤ +15% 且 密度 ≥ +50% 且 介质单价降 ≥ 20%，三者同过 |
+| B vs A（均匀热/随机）| P99 方向性显著上升（幅度无法确定）| 记录为不适用负载边界，不作达标要求 |
+| D vs B（CXL）| CXL 延迟 140–410 ns、尾延迟高（约 DRAM 2–4 倍 [11]）；[7] 的 3–5% 是执行时间减速、非 P99 | CXL 路径 P99 与 promotion-rate 优于 NVMe-swap |
 
 ## 结果回填与价值兑现
 

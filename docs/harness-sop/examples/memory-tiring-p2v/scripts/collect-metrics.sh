@@ -10,8 +10,9 @@ dst="$outdir/$label-$ts"
 mkdir -p "$dst"
 
 # 内核内存分层计数器（降级/提升/迁移；字段以本机为准）
-grep -E 'pgdemote|pgpromote|numa_pages_migrated|numa_hint|pgmigrate' /proc/vmstat \
-  > "$dst/vmstat.txt" 2>/dev/null || echo "no tiering counters in /proc/vmstat" > "$dst/vmstat.txt"
+# CXL 通路看 pgdemote/pgpromote/numa_pages_migrated；NVMe-swap 通路看 pswpin/pswpout/pgscan/pgsteal
+grep -E 'pgdemote|pgpromote|numa_pages_migrated|numa_hint|pgmigrate|pswpin|pswpout|pgscan|pgsteal' /proc/vmstat \
+  > "$dst/vmstat.txt" 2>/dev/null || echo "no tiering/swap counters in /proc/vmstat" > "$dst/vmstat.txt"
 # 内存压力 PSI
 cat /proc/pressure/memory > "$dst/psi-memory.txt" 2>/dev/null || echo "PSI not available" > "$dst/psi-memory.txt"
 # NUMA 分布
@@ -20,6 +21,10 @@ else echo "numastat missing" > "$dst/numastat.txt"; fi
 # 每节点内存
 for n in /sys/devices/system/node/node*/meminfo; do
   [ -r "$n" ] && { echo "== $n =="; cat "$n"; } >> "$dst/node-meminfo.txt" 2>/dev/null || true
+done
+# 按 VM 采集（cgroup v2 qemu.slice 作用域）——host 全局计数无法归因到单台 VM
+for s in /sys/fs/cgroup/qemu.slice/*.scope/memory.stat; do
+  [ -r "$s" ] && { echo "== $s =="; cat "$s"; } >> "$dst/per-vm-memory-stat.txt" 2>/dev/null || true
 done
 # swap（NVMe-swap 路径关注）与总体内存
 cat /proc/swaps > "$dst/swaps.txt" 2>/dev/null || true

@@ -10,10 +10,20 @@ CONFIGS=("baseline" "nvme-swap" "cxl-numa")        # 按本机硬件删减
 WORKLOADS=("cold-heavy" "uniform-hot" "overcommit")
 
 run_workload() {
+  # 默认仅打印命令，避免误跑；取消下方注释并按机型调参即为实测。
+  # 前置：须先用 host mem= 或 cgroup memory.high 压低 DRAM，逼出 swap/降级（见 benchmark-plan.md）。
   case "$1" in
-    cold-heavy)  echo "  TODO: 偏斜读负载，如 memtier_benchmark 或 RocksDB db_bench（占位）" ;;
-    uniform-hot) echo "  TODO: 随机访问压力，如 stress-ng --vm（反例边界，占位）" ;;
-    overcommit)  echo "  TODO: 并发起 N 台 VM，总工作集 > DRAM（占位）" ;;
+    cold-heavy)
+      echo "  cmd: memtier_benchmark --key-maximum=50000000 --key-pattern=G:G --ratio=1:4 --data-size=1024 --test-time=300"
+      # memtier_benchmark --key-maximum=50000000 --key-pattern=G:G --ratio=1:4 --data-size=1024 --test-time=300
+      ;;
+    uniform-hot)
+      echo "  cmd: stress-ng --vm 4 --vm-bytes 90% --vm-method all --timeout 300s"
+      # stress-ng --vm 4 --vm-bytes 90% --vm-method all --timeout 300s
+      ;;
+    overcommit)
+      echo "  逐台加 VM，直到任一 VM 破 P99 门或 host PSI-some 超阈值；记录 VM 数为密度"
+      ;;
   esac
 }
 
