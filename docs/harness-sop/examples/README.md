@@ -10,4 +10,8 @@
 - **硬约束**：调研全程无授权检索；所有事实与"控标经典案例"必须真实可核验，查不到写
   "无法确定"，严禁杜撰。
 
-> 目前尚无案例。第一份案例生成后，可在此处补一行索引指向它。
+## 案例索引
+
+- [memory-tiring-p2v](memory-tiring-p2v/report.md) — 内存分层方向 · Proxmox VE 对标 VMware
+  vSphere 分析报告（附 [过程记录与复盘](memory-tiring-p2v/process-notes.md)）。这是 SOP 的首份
+  真实案例，其过程复盘驱动了一轮 SOP 迭代（来源分级、开源吸收/闭源逆向、存疑与需确认章节等）。
