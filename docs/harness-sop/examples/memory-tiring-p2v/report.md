@@ -274,6 +274,9 @@ graph LR
   - D vs B：CXL 延迟约为本地 DRAM 的 2 倍（约 250ns 对 130ns）[11]，远优于 NVMe，但成本更高、
     生态更早期。
 
+> 可执行方案与采集脚本见 [benchmark-plan.md](benchmark-plan.md) 与 [scripts/](scripts/)。注意机制
+> 差异：NVMe 慢层在 Linux 上走 swap/zswap，CXL 慢层才是内核内存分层，二者分别评估。
+
 ### 控标经典案例
 
 **无法确定。** 未检索到 Proxmox 内存分层相关、可公开核验的招投标"控标"案例（这类开源基础设施

@@ -13,5 +13,5 @@
 ## 案例索引
 
 - [memory-tiring-p2v](memory-tiring-p2v/report.md) — 内存分层方向 · Proxmox VE 对标 VMware
-  vSphere 分析报告（附 [过程记录与复盘](memory-tiring-p2v/process-notes.md)）。这是 SOP 的首份
-  真实案例，其过程复盘驱动了一轮 SOP 迭代（来源分级、开源吸收/闭源逆向、存疑与需确认章节等）。
+  vSphere 分析报告（附 [过程记录](memory-tiring-p2v/process-notes.md) 与 [可执行测试方案](memory-tiring-p2v/benchmark-plan.md)）。这是 SOP 的首份真实案例，其过程复盘驱动了多轮 SOP 迭代
+  （来源分级、开源吸收/闭源逆向、存疑与需确认、无实测估算与对比测试设计、上游视角等）。
