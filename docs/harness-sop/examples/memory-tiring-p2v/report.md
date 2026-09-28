@@ -58,14 +58,24 @@ guest 透明）。评价维度据此设为：主动机制（双通路均有）�
 
 ## 二、学术热点与生产级证据
 
-学术前沿（OSDI 2026，用户提供 [8]）：RamRyder（通道即带宽资源；警示加权交织是带宽聚合、非冷页
-下沉）、MAC（元数据勿入慢层）、NEMO（低开销观测）、OBASE（对象级布局，远期）、MDK（目标应是 SLO 下
-长期省内存 → DAMOS 目标用 `some_mem_psi_us`，`promotion-rate` 经 `user_input` 反馈 [16]）。
+学术前沿（用户以**线索**提供，已独立检索核验 [8]）：**OSDI '26 确实存在**（USENIX 技术议程）。其中
+**RamRyder**（软件定义弹性内存，把 guest 页到内存通道的映射作分配单位；报告容量/带宽利用率各
++28.6%/+43.2%——与用户材料数字一致，警示加权交织是带宽聚合、非冷页下沉）、**MAC**（Metadata
+Acceleration，CXL DRAM 元数据加速；OSDI '26 题名可查）、**MDK**（重思数据中心内存回收，目标为 SLO 下
+多容纳作业 → 对应 DAMOS 目标 `some_mem_psi_us`、`promotion-rate` 经 `user_input` 反馈 [16]）均**已独立
+核验**；**OBASE / NEMO** 的**具体命名未能独立确认**，但其概念（冷热对象混页即 hotness fragmentation、
+句柄间接与对象重排 / MC 遥测观测）可溯到公开工作（SoarAlto "Beyond Hotness" OSDI '25 [22]、ObjecTier、
+Tidying Up the Address Space）——**按概念采信、按命名存疑**。
 
 **更贴近本 MVP 的是生产级证据**：Meta 的 TMO（Transparent Memory Offloading，ASPLOS'22）在机群规模用
 PSI 驱动把冷页主动 offload 到 zswap/NVMe swap [17]；Google 远内存（ASPLOS'19）用 zswap 同理。§七 的
 "读 `/proc/pressure/memory` → 写 per-scope cgroup 上限"正是 TMO 的架构——这说明 **NVMe swap 通路的
 主动分层是已被生产验证的成熟做法，不是"缺失的引擎"**。
+
+另有直接相关的已核验工作：**Equilibria**（面向 CXL 分层的公平多租户 OS 框架，按容器/租户调控提升与
+降级）[20] 为 CSP"按 VM 多租户隔离"提供了学术先例；**Managing Memory Tiers with CXL in Virtualized
+Environments（Memstrata，OSDI '24，微软）**[21] 表明 **CXL 分层在虚拟化环境已有系统性研究**——部分
+回应"KVM guest 上分层无实测"之虑（但仍非 Proxmox+DAMON 的直接实测，见"存疑"）。
 
 ## 三、内核视角：历史、现状、演进、预测
 
@@ -284,7 +294,7 @@ AGPLv3 企业 SLA。
 [5] Steve Scargall — Linux Kernel Tiering with CXL Memory（2024-05；个人博客，仅作机制入门）. https://stevescargall.com/blog/2024/05/using-linux-kernel-tiering-with-compute-express-link-cxl-memory/
 [6] LWN — Weighted interleaving for memory tiering（提案；6.9 合入据 kernelnewbies）. https://lwn.net/Articles/948037/
 [7] LWN(lore) — DAMON tiered memory management（Honggyu Kim 补丁，"11%→3–5%"为执行时间减速）. https://lwn.net/Articles/978313/
-[8] 用户提供材料 — OSDI 2026 Day1 Track2 Session1 + 背景综述（未独立核验）.
+[8] 用户提供的**线索**（OSDI 2026 Day1 Track2 Session1 + 背景综述），已独立检索核验：OSDI '26 议程见 USENIX https://www.usenix.org/conference/osdi26/technical-sessions ；RamRyder/MAC/MDK 可核验，NEMO/OBASE 命名未确认（概念见 [22] 等）.
 [9] Stanford DAM — Memory Prices. https://dam.stanford.edu/memory-prices.html
 [10] RAM vs SSD Price Trends（消费级市场数据，波动大，仅数量级参考）. https://rampricehistory.com/blog/ram-vs-ssd-price-trends-2026
 [11] Jinshu Liu, Hamid Hadian, Hanchen Xu, Daniel S. Berger, Huaicheng Li — Dissecting CXL Memory Performance at Scale（arXiv:2409.14317；CXL 140–410 ns）. https://arxiv.org/abs/2409.14317
@@ -296,6 +306,9 @@ AGPLv3 企业 SLA。
 [17] Weiner 等 — TMO: Transparent Memory Offloading in Datacenters（ASPLOS'22；PSI 驱动主动 offload 到 swap）. https://dl.acm.org/doi/10.1145/3503222.3507731
 [18] Yellow-Bricks — vSphere Memory Tiering FAQ（2026-07；启用分层每 VM 关大页、vMotion 1.5–2×、4 KB 粒度）. https://www.yellow-bricks.com/
 [19] Proxmox — PVE 9.2 发布（2026-05，内核 7.0）与 Proxmox VE Kernel wiki. https://www.proxmox.com/en/about/company-details/press-releases
+[20] Equilibria: Fair Multi-Tenant CXL Memory Tiering at Scale（arXiv:2602.08800）. https://arxiv.org/abs/2602.08800
+[21] Zhong 等 — Managing Memory Tiers with CXL in Virtualized Environments（Memstrata，OSDI '24，Microsoft）. https://www.usenix.org/conference/osdi24
+[22] Liu, Hadian, Xu 等 — Tiered Memory Management Beyond Hotness（SoarAlto，OSDI '25）. https://www.usenix.org/conference/osdi25/presentation/liu
 
 ## 修订说明（v4，经两轮 7 路评审）
 
@@ -318,4 +331,5 @@ AGPLv3 企业 SLA。
 - 与 ESXi 头对头（config E）尾延迟/密度对比：**无法确定**，待实测——这是"超越"最硬的待验证项。
 - CXL：KVM guest 上 TPP/DAMON 的开销与精度、国产/主流 CPU 的 CXL 可得性、VMware 的 CXL 路线，均待证。
 - 信创目录资格、CoCo 边界、企业级价格比值、非介质 TCO：部分**无法确定**。
-- [8] 未独立核验；[9][10] 消费级；[18] keyless 抓取受限。
+- [8] 已按线索独立核验：OSDI '26 与 RamRyder/MAC/MDK 可查，**NEMO/OBASE 命名未确认**（概念可溯 [22]）；
+  [9][10] 消费级；[18] keyless 抓取受限。

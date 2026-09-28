@@ -89,3 +89,13 @@ storm-research（视角覆盖）。三路（全 Fable 5）强烈收敛，抓出 
 **元教训（已回灌 SOP）**：机制性主张必须对**一手源**（内核源码/官方文档）核验，不能只靠博客；且一次
 "修正"本身可能引入新错误（v3 之于 v2），故高价值结论需**再核验**，并优先用与主 agent 一致的高配置
 子代理做对拍。
+
+## v4.1 · 用户输入即线索（research 核验）
+
+按用户原则"用户提供的都是 hints、须发挥能力去 research 核验/发散"，把之前偷懒标"未独立核验"的 OSDI
+[8] 当线索独立检索：**OSDI '26 与 RamRyder / MAC / MDK 已独立核验**（RamRyder 的 +28.6%/+43.2% 与材料
+吻合，MAC 题名在 OSDI '26 列表可查），**NEMO / OBASE 命名未能确认**（概念可溯 SoarAlto "Beyond Hotness"
+OSDI'25、ObjecTier）；并挖到直接相关的已核验源 **Equilibria [20]**（CXL 多租户公平分层）与 **Memstrata /
+Managing Memory Tiers with CXL in Virtualized Environments（OSDI'24）[21]**，后者部分回应了"KVM guest 上
+分层无实测"之虑。原则已写进 SOP（价值模型/骨架/技能三处）：**用户材料是线索，须 research 核验/发散，
+不得原样当"未核验材料"支撑结论**。
