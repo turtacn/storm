@@ -51,9 +51,21 @@ python3 integrations/claude_code/run_storm_claude.py \
 
 `results/` 已在 `.gitignore` 中，不会误提交。
 
+## 另一个扩展：Grilling 套件 / Grilling suite
+
+本目录还内置了一个**自包含**的 `grill-with-docs` 套件（vendored 自
+`mattpocock/skills`，MIT）：一个单会话"拷问式"设计澄清技能，边谈边把术语写进
+`CONTEXT.md`、把关键决策写成 `docs/adr/` 的 ADR。用户显式触发：`/grill-with-docs`。
+它与 STORM 无关，仅同处本分支。详见 [grilling-suite.md](grilling-suite.md) 与
+[`.claude/skills/VENDOR-NOTICE.md`](../../.claude/skills/VENDOR-NOTICE.md)。
+
+> 注意：它是**面向你本人的面试式澄清**，不是"多 reviewer agent 并行审查"。
+
 ## 更多 / More
 
-- [claude-code-integration.md](claude-code-integration.md) — 架构、数据流、
-  配置、用法、测试的完整说明。
+- [claude-code-integration.md](claude-code-integration.md) — STORM 集成的架构、
+  数据流、配置、用法、测试的完整说明。
 - [capability-boundaries.md](capability-boundaries.md) — 能力边界、"集成"的
   三种含义、为何不推荐把 `claude -p` 当后端，以及替代方案。
+- [grilling-suite.md](grilling-suite.md) — vendored `grill-with-docs` 套件的
+  说明、用法、自包含校验与许可。
