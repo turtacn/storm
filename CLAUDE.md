@@ -34,11 +34,12 @@
 |---|---|
 | `knowledge_storm/` | STORM 内核（上游，未改动） |
 | `integrations/claude_code/` | STORM×Claude Code 运行器、preflight、测试 |
-| `.claude/skills/` | 本仓库技能：`storm-research`、`report-authoring`、以及 vendored 的 `grill-with-docs`/`grilling`/`domain-modeling` |
-| `.claude/commands/` | 斜杠命令：`/storm` |
+| `.claude/skills/` | 本仓库技能：`storm-research`、`report-authoring`、`competitive-analysis`，以及 vendored 的 `grill-with-docs`/`grilling`/`domain-modeling` |
+| `.claude/commands/` | 斜杠命令：`/storm`、`/compare` |
 | `vendor/reverse-skill/` | vendored 逆向/安全技能路由包（源码自包含，见其 `VENDORED-INTO-STORM.md`） |
 | `docs/authoring/` | 报告写作标准与 Mermaid 格式规范 |
 | `docs/extensions/` | 集成设计、能力边界、无授权检索策略 |
+| `docs/harness-sop/` | 竞品对标分析 SOP 文档与案例（`examples/`） |
 
 ## 测试
 
