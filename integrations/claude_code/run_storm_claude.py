@@ -25,7 +25,9 @@ ANTHROPIC_API_KEY
     Required. Credentials for the Claude models (this is an Anthropic API key --
     it is *not* your Claude Code subscription; see docs/extensions).
 STORM_CLAUDE_STRONG_MODEL / STORM_CLAUDE_FAST_MODEL
-    Optional. Override the default model ids without editing this file.
+    Optional. Override the default model ids without editing this file. For config
+    consistency, set these to the SAME model the main Claude Code agent uses
+    (e.g. anthropic/claude-fable-5) so STORM's backend matches the main agent.
 <RETRIEVER>_API_KEY
     Only required for non-DuckDuckGo retrievers (see ``RETRIEVER_ENV``).
 

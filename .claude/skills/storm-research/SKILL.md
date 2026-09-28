@@ -32,9 +32,13 @@ Parse the JSON. Act on the first failing check:
   needs a one-time environment setup that is **large and slow** (pulls torch via
   sentence-transformers) and ask before proceeding. On approval:
   ```bash
-  python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
+  # 本地绿色安装：项目内 venv，无需 sudo，不改系统
+  python3 -m venv .venv && . .venv/bin/activate \
+    && pip install -r requirements.txt -r integrations/claude_code/requirements-extra.txt
   ```
-  After that, run STORM with `.venv/bin/python` instead of `python3`.
+  After that, run STORM with `.venv/bin/python` instead of `python3`. 模型用**与主 agent 一致**的
+  配置（例如 `STORM_CLAUDE_STRONG_MODEL=anthropic/claude-fable-5`、`STORM_CLAUDE_FAST_MODEL=...`）；
+  检索保持无授权（DuckDuckGo）。
 - **`ANTHROPIC_API_KEY` missing** — ask the user to export it or add it to
   `secrets.toml` (copy `integrations/claude_code/secrets.toml.example`). This is an
   **Anthropic API key**, not their Claude Code subscription — the two are separate.

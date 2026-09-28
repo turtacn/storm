@@ -55,6 +55,16 @@ class PreflightTests(unittest.TestCase):
         with _env(TAVILY_API_KEY="x"):
             self.assertTrue(preflight.check_retriever_key("tavily")["ok"])
 
+    def test_retriever_dep_check(self):
+        # DuckDuckGo (keyless default) needs the duckduckgo_search package.
+        r = preflight.check_retriever_dep("duckduckgo")
+        self.assertIn("ok", r)
+        self.assertIn("hint", r)
+        if not r["ok"]:
+            self.assertIn("requirements-extra", r["hint"])
+        # retrievers without an extra dep report n/a-ok
+        self.assertTrue(preflight.check_retriever_dep("bing")["ok"])
+
     def test_import_check_reports_status(self):
         # In this environment the STORM stack isn't installed, so this reports
         # not-ok with an actionable hint. The shape must always be well-formed.

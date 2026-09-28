@@ -1,0 +1,4 @@
+# STORM × Claude Code 集成的额外依赖（本地绿色安装：venv，无需 sudo）
+#   . .venv/bin/activate && pip install -r integrations/claude_code/requirements-extra.txt
+# 说明：默认检索器 DuckDuckGo 走无授权检索，但其依赖不在 STORM 核心 requirements.txt 中。
+duckduckgo-search

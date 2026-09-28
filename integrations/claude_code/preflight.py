@@ -72,6 +72,24 @@ def check_anthropic_key() -> dict:
     }
 
 
+def check_retriever_dep(retriever: str) -> dict:
+    """DuckDuckGo (keyless default) needs the `duckduckgo_search` package, which is
+    NOT in STORM's core requirements. Install it locally (green, no sudo)."""
+    if retriever == "duckduckgo":
+        try:
+            importlib.import_module("duckduckgo_search")
+            return {"name": "dep:duckduckgo_search", "ok": True, "detail": "importable", "hint": None}
+        except Exception:  # noqa: BLE001
+            return {
+                "name": "dep:duckduckgo_search",
+                "ok": False,
+                "detail": "missing",
+                "hint": "本地绿色安装（无需 sudo）: . .venv/bin/activate && "
+                "pip install -r integrations/claude_code/requirements-extra.txt",
+            }
+    return {"name": f"dep:{retriever}", "ok": True, "detail": "n/a", "hint": None}
+
+
 def check_retriever_key(retriever: str) -> dict:
     env_var = RETRIEVER_ENV.get(retriever)
     if env_var is None:
@@ -96,6 +114,7 @@ def build_report(retriever: str = "duckduckgo") -> dict:
         check_import(),
         check_anthropic_key(),
         check_retriever_key(retriever),
+        check_retriever_dep(retriever),
     ]
     return {"ok": all(c["ok"] for c in checks), "retriever": retriever, "checks": checks}
 

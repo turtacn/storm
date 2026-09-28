@@ -39,6 +39,25 @@ description: >-
   （防幻觉与核验）。
 - **可选技术剖析**：`vendor/reverse-skill`（仅授权、仅公开信息或己方/开源目标）。
 
+## 全资产参与与配置一致（质量原则）
+
+- **全资产参与**：上列资产**每次对标都要参与**——主线用得上就用，用不上也要进"对拍/评审"或"校验"
+  环节；闲置资产视为质量隐患。参与映射：
+
+| 资产 | 参与方式 |
+|---|---|
+| storm-research / run_storm_claude / knowledge_storm | 主线调研（无授权检索）；无 key 时至少做研究完整性对拍 |
+| grilling / grill-with-docs / domain-modeling | 阶段零/一澄清；对拍中拷问假设；产出 `CONTEXT.md` 术语表与 ADR |
+| report-authoring + docs/authoring + mermaid 校验 | 成文与图表规范；提交跑 mermaid linter |
+| 无授权检索策略 | 全程 keyless |
+| vendor/reverse-skill | 开源目标用源码/机制研读对拍验证；闭源才用二进制逆向 |
+| scholar-slides | 出片（fidelity-first 原则） |
+| 多 reviewer 对拍 | 技术深度/产品价值/证据严谨/架构可行 + 上述资产化身，并行对抗式评审 |
+
+- **配置一致**：一切子代理与其它 LLM 调用（reviewer 子代理、STORM 后端等）都使用**与主 agent 相同的
+  模型/配置**（本会话为 Claude Fable 5）；派子代理时显式指定与主 agent 一致的模型（如 `model: fable`）。
+- **本地绿色安装**：任何安装一律走**项目本地虚拟环境（venv）、无需 sudo**，不改系统。
+
 ## 阶段流程
 
 ### 阶段零 · 目标与价值假设（价值锚点）
