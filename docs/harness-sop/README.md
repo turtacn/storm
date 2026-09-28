@@ -21,6 +21,10 @@
 FAB、客户语言的价值、控标经典案例）**。SOP 把这条链条固化下来，把本仓库已有的三类能力编排成
 一次可复现的作业，产出一份决策级、可对外交付的报告。
 
+本 SOP 以**价值兑现**为主线组织：从阶段零钉住价值假设，到最终成文，每个产物都必须能追溯回目标
+与真实证据，凡不可追溯或流于空泛者一律淘汰。价值方法论内核见
+[value-realization-model.md](value-realization-model.md)。
+
 ## 流程总览
 
 SOP 分七个阶段，串联"澄清 → 调研 → 分析 → 规划 → 设计 → 价值 → 成文"。下图刻画阶段流水线
@@ -34,7 +38,8 @@ flowchart TD
         LO[最终产出（Deliverable）]:::outCls
     end
 
-    P1[阶段一 · 澄清范围（Scoping）<br>grilling]:::stageCls --> P2[阶段二 · 学术与情报调研（Research）<br>storm-research]:::stageCls
+    P0[阶段零 · 目标与价值假设（Value Anchor）<br>价值假设卡]:::stageCls --> P1[阶段一 · 澄清范围（Scoping）<br>grilling]:::stageCls
+    P1 --> P2[阶段二 · 学术与情报调研（Research）<br>storm-research]:::stageCls
     P2 --> P3[阶段三 · 差距分析（Gap Analysis）]:::stageCls
     P3 --> P4[阶段四 · 行动路线（Roadmap）]:::stageCls
     P4 --> P5[阶段五 · MVP 架构设计（Architecture）]:::stageCls
@@ -50,6 +55,7 @@ flowchart TD
 
 | 阶段 | 目标 | 承载技能/工具 |
 |---|---|---|
+| 零 目标与价值假设 | 钉住要兑现的价值、受益者、度量口径 | 本 SOP（价值假设卡） |
 | 一 澄清范围 | 锁定 XXX 边界、YYY/ZZZ 形态、评价维度、客户与招标背景 | `grilling`（可配 `domain-modeling` 落术语/决策） |
 | 二 学术与情报调研 | 汇集 XXX 学术热点、ZZZ 公开情报、YYY 现状，带引用 | `storm-research`（默认无授权 DuckDuckGo）+ 内置 `WebSearch`/`WebFetch` |
 | 三 差距分析 | 逐维对比 YYY 与 ZZZ，证据锚定 | `report-authoring`（表格化） |

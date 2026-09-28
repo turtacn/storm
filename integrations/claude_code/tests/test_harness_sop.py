@@ -38,11 +38,22 @@ class HarnessSopTests(unittest.TestCase):
         self.assertEqual(frontmatter_name(SKILL), "competitive-analysis")
 
     def test_docs_home_present(self):
-        for rel in ("README.md", "report-outline.md", os.path.join("examples", "README.md")):
+        for rel in (
+            "README.md",
+            "report-outline.md",
+            "value-realization-model.md",
+            os.path.join("examples", "README.md"),
+        ):
             self.assertTrue(
                 os.path.exists(os.path.join(SOP_DIR, rel)),
                 f"docs/harness-sop/{rel} missing",
             )
+
+    def test_value_spine_present(self):
+        # The SOP is organized around value realization: phase 0 + traceability.
+        body = read(SKILL)
+        self.assertIn("阶段零", body)
+        self.assertIn("value-realization-model.md", body)
 
     def test_command_present(self):
         self.assertTrue(os.path.exists(COMMAND), "/compare command missing")
