@@ -197,6 +197,13 @@ class PureLogicTests(unittest.TestCase):
         with _env(BING_SEARCH_API_KEY="x"):
             self.assertIsNone(rsc.missing_retriever_key("bing"))
 
+    def test_default_retriever_is_no_auth(self):
+        # Policy: external retrieval must work with no API authorization.
+        args = rsc.build_parser().parse_args(["--topic", "X"])
+        self.assertEqual(args.retriever, "duckduckgo")
+        self.assertIsNone(rsc.RETRIEVER_ENV["duckduckgo"])
+        self.assertIsNone(rsc.missing_retriever_key(args.retriever))
+
 
 # --------------------------------------------------------------------------- #
 # End-to-end tests (with fakes)                                                #

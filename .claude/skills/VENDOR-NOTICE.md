@@ -23,10 +23,13 @@ NOT covered by this notice.)
   - `skills/productivity/grilling/SKILL.md`
 - License: MIT (see full text below).
 
+### Included for cross-harness completeness
+
+- `agents/openai.yaml` for each skill — the upstream's OpenAI/Codex harness config.
+  Inert under Claude Code, kept so the vendored copy is self-contained across clients.
+
 ### What was intentionally omitted
 
-- `agents/openai.yaml` from each upstream skill — those configure the skills for
-  the OpenAI/Codex harness and are irrelevant to Claude Code self-containment.
 - The downstream build chain (`to-spec` → `to-tickets` → `implement` →
   `code-review`) — not vendored. `grill-with-docs` runs without them; it produces
   `CONTEXT.md` + ADRs and suggests next steps.

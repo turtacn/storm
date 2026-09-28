@@ -61,6 +61,25 @@ python3 integrations/claude_code/run_storm_claude.py \
 
 > 注意：它是**面向你本人的面试式澄清**，不是"多 reviewer agent 并行审查"。
 
+## 第三个扩展：逆向技能包 / reverse-skill (vendored)
+
+`vendor/reverse-skill/` 内置了 `zhaoxuya520/reverse-skill`（MIT）的**完整源码**：
+一个面向授权逆向/渗透/安全研究的**任务技能路由包**（router pack），自带按需工具
+自举脚本。以**源码方式**内置、**自包含**（无需外部 clone/archive/install）。它是
+路由器（入口 `vendor/reverse-skill/CLAUDE.md`），不是散装技能；默认不写入
+`.claude/skills/`（避免 50+ 条目与已有技能冲突，且多数已全局可用）。详见
+[`vendor/reverse-skill/VENDORED-INTO-STORM.md`](../../vendor/reverse-skill/VENDORED-INTO-STORM.md)
+与 [`LOCAL-OVERRIDES.md`](../../vendor/reverse-skill/LOCAL-OVERRIDES.md)。
+
+> 仅用于**授权**的测试/CTF/研究；包内 `RULES.md`/`SECURITY.md` 仍为治理策略。
+
+## 无授权外部检索 / No-auth external retrieval
+
+本仓库策略：所有外部信息检索（web 搜索、OSINT、抓取）**一律无需 API 授权**。
+STORM 默认用 keyless 的 DuckDuckGo + 本地 embedding；grilling 用内置 `WebSearch`/
+`WebFetch`；reverse-skill 由其 overlay 强制。详见
+[no-auth-external-retrieval.md](no-auth-external-retrieval.md)。
+
 ## 更多 / More
 
 - [claude-code-integration.md](claude-code-integration.md) — STORM 集成的架构、
@@ -69,3 +88,5 @@ python3 integrations/claude_code/run_storm_claude.py \
   三种含义、为何不推荐把 `claude -p` 当后端，以及替代方案。
 - [grilling-suite.md](grilling-suite.md) — vendored `grill-with-docs` 套件的
   说明、用法、自包含校验与许可。
+- [no-auth-external-retrieval.md](no-auth-external-retrieval.md) — 无授权外部检索
+  策略与各集成的落地方式。

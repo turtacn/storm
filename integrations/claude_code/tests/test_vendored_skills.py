@@ -78,14 +78,47 @@ class VendoredSkillsTests(unittest.TestCase):
         self.assertIn("MIT", text)
         self.assertIn("Copyright (c) 2026 Matt Pocock", text)
 
-    def test_no_codex_agent_configs_vendored(self):
-        # We intentionally omit the upstream agents/openai.yaml (Codex-specific).
+    def test_agent_configs_vendored(self):
+        # agents/openai.yaml kept for cross-harness self-containment.
         for skill in VENDORED:
-            agents = os.path.join(SKILLS_DIR, skill, "agents")
-            self.assertFalse(
-                os.path.exists(agents),
-                f"unexpected Codex agents/ dir vendored under {skill}/",
+            y = os.path.join(SKILLS_DIR, skill, "agents", "openai.yaml")
+            self.assertTrue(os.path.exists(y), f"missing {skill}/agents/openai.yaml")
+
+
+REVERSE_SKILL_DIR = os.path.join(REPO_ROOT, "vendor", "reverse-skill")
+NOAUTH_DOC = os.path.join(REPO_ROOT, "docs", "extensions", "no-auth-external-retrieval.md")
+
+
+class ReverseSkillVendorTests(unittest.TestCase):
+    def test_reverse_skill_vendored_self_contained(self):
+        for rel in ("LICENSE", "CLAUDE.md", "RULES.md", "skills", "VENDORED-INTO-STORM.md", "LOCAL-OVERRIDES.md"):
+            self.assertTrue(
+                os.path.exists(os.path.join(REVERSE_SKILL_DIR, rel)),
+                f"vendor/reverse-skill/{rel} missing",
             )
+
+    def test_reverse_skill_license_attribution(self):
+        text = read(os.path.join(REVERSE_SKILL_DIR, "LICENSE"))
+        self.assertIn("MIT", text)
+        self.assertIn("zhaoxuya520", text)
+
+    def test_reverse_skill_has_skill_files(self):
+        # The pack ships many skills; sanity-check a handful of expected ones.
+        for skill in ("ida-reverse", "apk-reverse", "reverse-engineering"):
+            self.assertTrue(
+                os.path.exists(os.path.join(REVERSE_SKILL_DIR, "skills", skill, "SKILL.md")),
+                f"expected reverse-skill/skills/{skill}/SKILL.md",
+            )
+
+
+class NoAuthPolicyTests(unittest.TestCase):
+    def test_policy_doc_present(self):
+        self.assertTrue(os.path.exists(NOAUTH_DOC), "no-auth policy doc missing")
+
+    def test_reverse_skill_override_enforces_no_auth(self):
+        text = read(os.path.join(REVERSE_SKILL_DIR, "LOCAL-OVERRIDES.md")).lower()
+        self.assertIn("no-auth", text)
+        self.assertTrue("api key" in text or "api-key" in text or "authorization" in text)
 
 
 if __name__ == "__main__":
