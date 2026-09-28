@@ -64,6 +64,65 @@ flowchart TD
 | 六 价值兑现 | 产品 FAB、客户语言价值、控标案例 | 本 SOP |
 | 七 成文 | 组装为符合写作标准的报告 | `report-authoring` |
 
+## 本 SOP 与 STORM 及扩展技能的关系
+
+这套 SOP **不是一套凭空的方法论**，而是把本仓库既有的能力编排起来完成对标分析。它坐落在三层
+之上：底层是 STORM 与各扩展技能提供的**能力**，中层是仓库统一的**治理规范**，SOP 只做**编排**。
+下图刻画这种依赖关系。
+
+```mermaid
+graph TD
+    %% 本 SOP 建立在 STORM 与扩展技能之上
+    subgraph LG[图例（Legend）]
+        LSOP[SOP 编排层（Orchestration）]:::sopCls
+        LCAP[项目能力层（Capabilities）]:::capCls
+        LGOV[治理规范层（Governance）]:::govCls
+    end
+
+    subgraph SOP[对标分析 SOP（competitive-analysis）]
+        S0[阶段零至七流水线（Pipeline）]:::sopCls
+    end
+
+    subgraph CAP[项目能力 · STORM 与扩展技能]
+        C1[STORM 研究引擎（storm-research）<br>run_storm_claude · knowledge_storm]:::capCls
+        C2[澄清与建模（grilling · grill-with-docs · domain-modeling）]:::capCls
+        C3[成文引擎（report-authoring）]:::capCls
+        C4[逆向情报可选（reverse-skill）]:::capCls
+    end
+
+    subgraph GOV[治理规范]
+        G1[写作与图表标准（docs authoring）]:::govCls
+        G2[无授权检索策略（no-auth）]:::govCls
+        G3[防幻觉与核验（CLAUDE.md）]:::govCls
+    end
+
+    S0 --> C1
+    S0 --> C2
+    S0 --> C3
+    S0 -->|可选| C4
+    S0 --> G1
+    S0 --> G2
+    S0 --> G3
+
+    classDef sopCls fill:#ede9fe,stroke:#5b21b6,color:#4c1d95;
+    classDef capCls fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
+    classDef govCls fill:#dcfce7,stroke:#166534,color:#14532d;
+```
+
+具体到每项能力落在哪个阶段、来自仓库哪个资产，见下表。这层显性映射保证 SOP 与本项目是"长在
+一起"的，而不是可以随意搬走的空壳。
+
+| SOP 能力 | 依赖的本项目资产 |
+|---|---|
+| 阶段零/一 · 澄清与价值假设 | `grilling`、`grill-with-docs`、`domain-modeling` |
+| 阶段二 · 学术与情报调研 | `storm-research`（`integrations/claude_code/run_storm_claude.py` → `knowledge_storm`），默认无授权 DuckDuckGo |
+| 阶段三/四/六 · 分析·排期·价值 | 本 SOP 方法 + `report-authoring` 的表格与图表规范 |
+| 阶段五 · MVP 架构 | `report-authoring` + `docs/authoring/mermaid-style-guide.md` |
+| 阶段七 · 成文 | `report-authoring` + `docs/authoring/report-style-guide.md` |
+| 全程检索 | `docs/extensions/no-auth-external-retrieval.md`（无授权） |
+| 全程事实把关 | 防幻觉与核验（`docs/authoring/` + 根 `CLAUDE.md`） |
+| 可选技术剖析 | `vendor/reverse-skill`（仅授权、仅公开信息或己方/开源目标） |
+
 ## 输入三要素与最终产出
 
 - **输入**：`XXX`（技术或产品方向）、`YYY`（本方产品）、`ZZZ`（对标产品）；可选目标客户、

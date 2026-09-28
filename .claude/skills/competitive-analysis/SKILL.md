@@ -26,6 +26,19 @@ description: >-
 **可追溯**——向后溯到目标与真实证据，向前抵达客户价值；凡不可追溯或流于空泛者一律淘汰。价值
 模型与追溯链见 `docs/harness-sop/value-realization-model.md`。
 
+## 能力来源（与 STORM 及扩展技能的关系）
+
+本 SOP 不是独立方法，而是把本仓库的能力**编排**起来完成对标分析（关系图见
+`docs/harness-sop/README.md`）：
+
+- **调研**：`storm-research`（后端 `integrations/claude_code/run_storm_claude.py` →
+  `knowledge_storm`），默认无授权 DuckDuckGo。
+- **澄清与建模**：`grilling`、`grill-with-docs`、`domain-modeling`。
+- **成文与图表**：`report-authoring` + `docs/authoring/` 写作与 Mermaid 标准。
+- **治理**：`docs/extensions/no-auth-external-retrieval.md`（无授权检索）、根 `CLAUDE.md`
+  （防幻觉与核验）。
+- **可选技术剖析**：`vendor/reverse-skill`（仅授权、仅公开信息或己方/开源目标）。
+
 ## 阶段流程
 
 ### 阶段零 · 目标与价值假设（价值锚点）

@@ -68,6 +68,13 @@ class HarnessSopTests(unittest.TestCase):
         self.assertIn("docs/harness-sop/report-outline.md", body)
         self.assertIn("docs/harness-sop/examples/", body)
 
+    def test_relationship_to_project_is_explicit(self):
+        # The SOP must visibly relate to STORM and the extension skills.
+        readme = read(os.path.join(SOP_DIR, "README.md"))
+        for asset in ("storm-research", "report-authoring", "knowledge_storm", "no-auth", "reverse-skill"):
+            self.assertIn(asset, readme, f"README should explicitly relate to '{asset}'")
+        self.assertIn("能力来源", read(SKILL))
+
 
 if __name__ == "__main__":
     unittest.main()
