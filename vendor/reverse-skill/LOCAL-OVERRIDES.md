@@ -30,3 +30,12 @@ This mirrors the repo-wide policy in
 The pack may bootstrap tools on demand. Keep everything within this repo / the current
 machine; do not fetch from unpinned external archives. Prefer tools already present
 (`skills/tool-index.md`) and no-auth sources.
+
+## Override 3 — 报告产出遵循仓库写作标准
+
+包内任何生成"给人读的报告/文档"的技能——尤其是 `skills/docs-generator`，它会在逆向、
+渗透、CTF、安全分析等任务结束时产出正式报告——除遵循自身模板外，其产出**还必须**符合
+本仓库的写作标准：`docs/authoring/report-style-guide.md` 及其 Mermaid 附录
+`docs/authoring/mermaid-style-guide.md`。要点：章节大纲先行、结论置后、关键对比用表格、
+`[n]` 数字引注加文末"参考资料"、图表一律 Mermaid（全角括号、`<br>` 换行、`%%` 注释独占
+一行、图例置顶配色），并完成防幻觉自检。

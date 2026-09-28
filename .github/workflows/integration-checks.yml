@@ -1,0 +1,35 @@
+name: Integration & docs checks
+
+# Runs this repo's Claude Code integration test-suite: the STORM runner plumbing,
+# preflight, vendored-skill self-containment, no-auth retrieval defaults, and the
+# Mermaid style linter for docs/. Stdlib-only (python -m unittest) so it needs no
+# dependency install. Intentionally scoped to integrations/claude_code/tests so it
+# never collects the vendored third-party tests under vendor/.
+
+on:
+  push:
+    paths:
+      - "integrations/**"
+      - "docs/**"
+      - ".claude/**"
+      - "CLAUDE.md"
+      - ".github/workflows/integration-checks.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "integrations/**"
+      - "docs/**"
+      - ".claude/**"
+      - "CLAUDE.md"
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run integration & docs tests (stdlib only)
+        run: |
+          python -m unittest discover -s integrations/claude_code/tests -p "test_*.py" -v
