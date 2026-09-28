@@ -50,11 +50,12 @@
 
 | 配置 | 慢层与机制 | 启用要点 |
 |---|---|---|
-| A 基线 | 纯 DRAM，无分层 | 关闭 demotion，`numa_balancing` 常规 |
-| B NVMe-swap | NVMe 作 swap 慢层（可叠 zswap） | 建 swap on NVMe；调 `swappiness`；可选 zswap |
-| C NVMe-swap 1:2 | 慢层容量加倍 | 同 B，改变 DRAM:慢层配比 |
-| D CXL-NUMA（可选） | CXL 作内存 NUMA 节点 + 内核分层 | `daxctl --mode=system-ram`；`demotion_enabled=true`；`numa_balancing=2` [5] |
-| 参照 VMware（可选） | 同硬件、同配比的 ESXi 分层 | 外部对照 [1] |
+| A 基线 | 纯 DRAM（含 PVE 既有 balloon/KSM），无分层 | `demotion_enabled=false`、`numa_balancing=0` |
+| B NVMe · DAMOS pageout | NVMe swap + 按 VM DAMOS `pageout`（memcg 过滤到 `qemu.slice/<vmid>.scope`）| 建 swap on NVMe；DAMOS paddr `pageout` + memcg 过滤；`memory.high` |
+| B-z 叠 zswap | B + zswap 压缩前端 | 写 `/sys/module/zswap/parameters/enabled=1`（zswap 内建，**非模块**，勿 modprobe）|
+| C 1:2 | 改变 DRAM:慢层容量配比 | 同 B，压更低 `mem=`/`memory.high` |
+| D2 CXL · DAMON 迁移 | CXL 作 NUMA 层 + DAMON(paddr) `migrate_hot/cold` | `daxctl reconfigure-device --force --mode=system-ram all` + `auto_online_blocks=online_movable`；`demotion_enabled=false`、`numa_balancing=0`（隔离 DAMON）[5][16] |
+| E ESXi 头对头 | 同硬件 ESXi 9 分层 1:1 | 外部对照，验证"超越/对等"，非可选 [1] |
 
 具体启用命令见 [`scripts/setup-tiers.sh`](scripts/setup-tiers.sh)。
 
@@ -71,9 +72,10 @@
 - 均匀热/随机：`stress-ng --vm N --vm-bytes 90% --vm-method all --timeout 300s`。
 - **配比落实**：B=1:1、C=1:2 必须真正改变 DRAM:慢层容量（在 `setup-tiers.sh` 落实），否则 B/C 同路。
 
-**新增两维**（reviewer 指出的决策关键）：**热迁移**——迁移一台约 50% 工作集在慢层的 VM，测停机
-时间与总迁移时长 vs 纯 DRAM；**THP 开/关**——1 GiB 大页实际不可迁移、THP 需拆分，测大页 guest 能否
-分层。
+**新增两维**（经核验修正）：**热迁移（分通路）**——NVMe 通路测换入风暴（precopy 期 `pswpin` 峰值 +
+总迁移时长），CXL 通路页常驻、只是读更慢；对照 ESXi vMotion（据 [1][18] 慢 1.5–2×）。**大页**——启用
+分层后**双方都牺牲大页**：VMware 每 VM 关大页、按 4 KB [18]；Linux THP 整体迁移、`-ENOMEM` 才拆，
+hugetlb（1 GiB）排除。
 
 ## 指标与采集
 
@@ -86,8 +88,10 @@
 | 迁移/换入 CPU | kswapd 与压缩线程 CPU | kdamond 与迁移线程 CPU |
 | 每 GB 介质单价 | 由容量与市价推算（[9][10]）| 同左 |
 
-> 关键（纠正 v2 错误）：NVMe 走 swap，`pgdemote/pgpromote` 恒为 0，必须看 `pswpin/out`；两套计数器
-> 不可混用。host 全局计数无法归因到某台 VM，故按 VM 采集是硬性要求。
+> 关键（经 v6.14 源码核验）：NVMe 走 swap，`pgdemote/pgpromote` 恒为 0，看 `pswpin/pswpout`（叠 zswap
+> 时看 `zswpin/zswpout/zswpwb`）；**DAMON 迁移（D2）不进 `pgpromote/pgdemote`**，看 `pgmigrate_success/fail`
+> 与 DAMOS `stats`；只有 TPP（`demotion_enabled`+`numa_balancing`）才计 `pgdemote/pgpromote`。host 全局
+> 计数无法归因到单台 VM，按 VM（`qemu.slice/<vmid>.scope/memory.stat` 与 `memory.pressure`）采集为硬性要求。
 
 采集见 [`scripts/collect-metrics.sh`](scripts/collect-metrics.sh)（只读快照，安全）。
 
@@ -115,7 +119,8 @@ flowchart LR
 |---|---|---|
 | B vs A（冷热分明，NVMe）| 介质单价降约 40%–45%（估算 [9][10]）；密度理论上限 +100%、实际更低（[1] 仅支持方向）；P99 待实测（NVMe µs 级，勿用 [7]）| P99 增幅 ≤ +15% 且 密度 ≥ +50% 且 介质单价降 ≥ 20%，三者同过 |
 | B vs A（均匀热/随机）| P99 方向性显著上升（幅度无法确定）| 记录为不适用负载边界，不作达标要求 |
-| D vs B（CXL）| CXL 延迟 140–410 ns、尾延迟高（约 DRAM 2–4 倍 [11]）；[7] 的 3–5% 是执行时间减速、非 P99 | CXL 路径 P99 与 promotion-rate 优于 NVMe-swap |
+| D2 vs B（CXL）| CXL 延迟 140–410 ns（"约 600 ns/尾延迟高"[11] 摘要未载，标未验）；[7] 的 3–5% 是执行时间减速、非 P99 | CXL 路径 P99 与 DAMOS/迁移指标优于 NVMe-swap |
+| B/C vs E（对 ESXi 头对头）| 目标对等或更优 | P99 差距 ≤ +15%、密度 ≥ E、每 VM 成本更低（无按核授权）——**"超越/对等"的关键门** |
 
 ## 结果回填与价值兑现
 

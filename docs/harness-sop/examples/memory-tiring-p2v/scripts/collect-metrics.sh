@@ -11,7 +11,7 @@ mkdir -p "$dst"
 
 # 内核内存分层计数器（降级/提升/迁移；字段以本机为准）
 # CXL 通路看 pgdemote/pgpromote/numa_pages_migrated；NVMe-swap 通路看 pswpin/pswpout/pgscan/pgsteal
-grep -E 'pgdemote|pgpromote|numa_pages_migrated|numa_hint|pgmigrate|pswpin|pswpout|pgscan|pgsteal' /proc/vmstat \
+grep -E 'pgdemote|pgpromote|numa_pages_migrated|numa_hint|pgmigrate|pswpin|pswpout|zswpin|zswpout|zswpwb|pgscan|pgsteal' /proc/vmstat \
   > "$dst/vmstat.txt" 2>/dev/null || echo "no tiering/swap counters in /proc/vmstat" > "$dst/vmstat.txt"
 # 内存压力 PSI
 cat /proc/pressure/memory > "$dst/psi-memory.txt" 2>/dev/null || echo "PSI not available" > "$dst/psi-memory.txt"
@@ -25,6 +25,14 @@ done
 # 按 VM 采集（cgroup v2 qemu.slice 作用域）——host 全局计数无法归因到单台 VM
 for s in /sys/fs/cgroup/qemu.slice/*.scope/memory.stat; do
   [ -r "$s" ] && { echo "== $s =="; cat "$s"; } >> "$dst/per-vm-memory-stat.txt" 2>/dev/null || true
+done
+# 按 VM 内存压力（PSI）
+for pr in /sys/fs/cgroup/qemu.slice/*.scope/memory.pressure; do
+  [ -r "$pr" ] && { echo "== $pr =="; cat "$pr"; } >> "$dst/per-vm-memory-pressure.txt" 2>/dev/null || true
+done
+# DAMOS 方案统计（DAMON 迁移/pageout 的真实计量；若已配置 DAMON）
+for st in /sys/kernel/mm/damon/admin/kdamonds/*/contexts/*/schemes/*/stats; do
+  [ -d "$st" ] && { echo "== $st =="; grep -H . "$st"/* 2>/dev/null; } >> "$dst/damos-stats.txt" 2>/dev/null || true
 done
 # swap（NVMe-swap 路径关注）与总体内存
 cat /proc/swaps > "$dst/swaps.txt" 2>/dev/null || true
