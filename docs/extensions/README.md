@@ -90,3 +90,7 @@ STORM 默认用 keyless 的 DuckDuckGo + 本地 embedding；grilling 用内置 `
   说明、用法、自包含校验与许可。
 - [no-auth-external-retrieval.md](no-auth-external-retrieval.md) — 无授权外部检索
   策略与各集成的落地方式。
+- [../authoring/report-style-guide.md](../authoring/report-style-guide.md) — 报告与
+  设计文档写作标准（结构、引用、图表、语言、防幻觉）。
+- [../authoring/mermaid-style-guide.md](../authoring/mermaid-style-guide.md) —
+  Mermaid 图表详细格式规范与可复用的合规示例。

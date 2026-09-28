@@ -18,27 +18,101 @@
 - 不把 `claude -p` 反过来当 STORM 的模型后端（可行但不划算，同上文）。
 - 不改 STORM 的算法/模块。
 
-## 2. 架构
+## 2. 架构与部署
+
+集成遵循"编排与后端分离"的思路：**编排层**由 Claude Code 依据技能指令负责调度，
+**后端层**在 STORM 内核之上薄封装、用 Claude 模型供能，内核本身保持零改动。下面的
+架构图刻画模块的层次与依赖关系。
 
 ```mermaid
-flowchart TD
-    U["用户 / User"] -->|"/storm &lt;topic&gt; 或自然语言"| CC["Claude Code CLI"]
-    CC -->|"读取"| SK[".claude/skills/storm-research/SKILL.md"]
-    SK -->|"1. 自检"| PF["preflight.py<br/>(python/deps/keys → JSON)"]
-    SK -->|"2. 后台运行"| RUN["run_storm_claude.py<br/>(方案四)"]
-    RUN -->|"LitellmModel"| LT["LiteLLM"] -->|"anthropic/claude-*"| API["Anthropic API"]
-    RUN -->|"Retriever"| RM["DuckDuckGo / Tavily / Bing ..."]
-    RUN -->|"STORMWikiRunner.run()"| CORE["knowledge_storm 核心 (未改动)"]
-    CORE -->|"写文件"| OUT["results/claude_code/&lt;slug&gt;/<br/>article + outline + refs<br/>+ claude_code_summary.json"]
-    SK -->|"3. 轮询摘要 → 读文章"| OUT
-    SK -->|"4. 呈现 / 可发布 Artifact"| U
+graph TD
+    %% 图例置顶，技术场景专业配色
+    subgraph LG[图例（Legend）]
+        L1[编排层（Orchestration）]:::orchCls
+        L2[后端层（Backend）]:::backCls
+        L3[内核与产物（Core and Output）]:::coreCls
+    end
+
+    %% 方案一：Claude Code 编排层
+    subgraph OR[编排层（方案一 · Skill）]
+        CMD[斜杠命令 /storm（Command）]:::orchCls
+        SK[技能 storm-research（Skill）]:::orchCls
+        CMD --> SK
+    end
+
+    %% 方案四：Claude 后端运行器
+    subgraph BE[后端层（方案四 · Runner）]
+        PF[环境自检（Preflight）]:::backCls
+        RUN[运行器（Runner）]:::backCls
+        LM[模型接入（LitellmModel）]:::backCls
+        RM[无授权检索（DuckDuckGo）]:::backCls
+        RUN --> LM
+        RUN --> RM
+    end
+
+    %% STORM 内核与产物
+    subgraph CO[内核与产物（Core）]
+        ENG[STORM 引擎（STORMWikiRunner）]:::coreCls
+        OUT[结果文件（Article and Summary）]:::coreCls
+        ENG --> OUT
+    end
+
+    SK --> PF
+    SK --> RUN
+    LM --> ENG
+    RM --> ENG
+    SK --> OUT
+
+    classDef orchCls fill:#dbeafe,stroke:#1e40af,color:#1e3a8a;
+    classDef backCls fill:#dcfce7,stroke:#166534,color:#14532d;
+    classDef coreCls fill:#fef3c7,stroke:#92400e,color:#78350f;
 ```
 
-- **方案一（编排层）**：`SKILL.md` + `/storm` 命令。Claude Code 依据技能指令，
-  依次做自检、后台起任务、轮询 `claude_code_summary.json`、读文章、汇总呈现。
-- **方案四（后端层）**：`run_storm_claude.py` 组装 `STORMWikiLMConfigs`，把 5 个
-  LM 槽位分别指到 Claude 的强/快模型，交给 `STORMWikiRunner`（`knowledge_storm/
-  storm_wiki/engine.py`）执行原有四阶段流水线。
+- **编排层（方案一）**：`storm-research` 技能与 `/storm` 命令。Claude Code 依据技能
+  指令，依次完成环境自检、后台启动、轮询 `claude_code_summary.json`、读回文章并汇总
+  呈现。
+- **后端层（方案四）**：`run_storm_claude.py` 组装 `STORMWikiLMConfigs`，把五个语言
+  模型槽位分别指到 Claude 的强/快模型，检索默认走无授权的 DuckDuckGo，最终交给
+  `STORMWikiRunner`（`knowledge_storm/storm_wiki/engine.py`）执行原有四阶段流水线。
+
+下面的部署图刻画运行时的节点、组件与其间的调用关系。开发机上是命令行客户端与 Python
+运行器进程，外部只依赖大模型服务与无授权检索，产物落到本地结果目录。
+
+```mermaid
+graph LR
+    %% 图例置顶
+    subgraph LG[图例（Legend）]
+        LN[运行节点（Node）]:::nodeCls
+        LC[运行组件（Component）]:::compCls
+    end
+
+    subgraph N1[开发机节点（Dev Host）]
+        D1[命令行客户端（Claude Code CLI）]:::compCls
+        D3[运行器进程（Runner Process）]:::compCls
+        D2[Python 运行时（Runtime）]:::compCls
+        D1 --> D3
+        D3 --> D2
+    end
+    subgraph N2[外部服务节点（External Services）]
+        E1[大模型服务（Anthropic API）]:::compCls
+        E2[无授权检索（DuckDuckGo）]:::compCls
+    end
+    subgraph N3[本地存储节点（Local Storage）]
+        F1[结果目录（results）]:::compCls
+    end
+
+    D2 -->|HTTPS 调用| E1
+    D2 -->|HTTPS 检索| E2
+    D3 -->|写文件| F1
+
+    classDef nodeCls fill:#e0e7ff,stroke:#3730a3,color:#312e81;
+    classDef compCls fill:#f1f5f9,stroke:#334155,color:#0f172a;
+    class N1,N2,N3 nodeCls;
+```
+
+需要强调的是，部署上对外只有两条 HTTPS 出站：一条到大模型服务，一条到无授权检索；
+后者不需要任何 API 密钥，这与本仓库"无授权外部检索"策略一致（见
+[no-auth-external-retrieval.md](no-auth-external-retrieval.md)）。
 
 ## 3. 组件
 
