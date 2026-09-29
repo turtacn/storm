@@ -198,7 +198,11 @@ flowchart TD
   pcm 读通道带宽）已并入 [benchmark-plan](benchmark-plan.md) 的执行前置。
 - QEMU CXL 文档未载热插/热度支持细节 [23]；P1 工具的实际开销未实测。
 - 2026 论文原型仓库（MAC/NEMO/OBASE/MDK/RamRyder 及 Memtis/HeMem/Pond）**不写死地址**——命名与
-  归属以作者主页/会议 artifact 为准（沿用"用户输入=线索须核验"原则；NEMO/OBASE 命名仍未独立确认）。
+  归属以作者主页/会议 artifact 为准（沿用"用户输入=线索须核验"原则）。**更新（v4.5）**：五篇 OSDI '26
+  题名与作者已由主 agent 抓 USENIX 官方议程一手确认（NEMO="Finding NEMO: Nimble and Expressive Memory
+  Observability"、OBASE="Object-Based Address-Space Engineering to Improve Memory Tiering"，arXiv
+  2603.00378），此前"命名未确认"结论作废；OBASE 摘要 verbatim 印证收束二对"分配器 size-class 致
+  hotness fragmentation"的贴回。
 - **暂缓清单（有理由的不读）**：pmem/pmdk——持久内存**编程库**，与本案例的易失扩容/页回收不是
   同一条路径，按课程排序 P0–P2 走完再看；TPP 独立仓库——其思路（降级/提升/显式内存层）多数已入
   主线 `mm/`，本消化直接读主线（P0 第 1 节），无须独立仓库。

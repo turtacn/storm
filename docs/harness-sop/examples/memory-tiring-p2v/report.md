@@ -10,6 +10,12 @@
 > [reverse-digest.md](reverse-digest.md)（术语贴回函数 + 论文增量表，证据分级标注）；随后经一路
 > Fable-5 机制底座对拍（判 FAIL、9 条必修）返修——含一处作者归属改正与计数器按 VM 口径的
 > 分版本重述，均经一手再核验。**
+> **v4.5：按"结论闭环（不留悬留存疑）"规则，启动五路资深 reviewer（Opus，配置同主 agent）并行对拍，
+> 把原"存疑与需确认"逐条推进到闭环。本轮已闭环：OSDI '26 五篇（含 NEMO/OBASE）升为一手确认、
+> 头对头 P99 删除循环的 ±15% 区间改为悬崖结构 + 可证伪门、产品化拆 M1a/M1b + 五卡点、vMotion/大页
+> 改挂第一方源、介质降幅改方向性。主 agent 对 reviewer 一手结论再核验（USENIX 议程、Broadcom
+> best-practices、TrendForce、PVE roadmap 均亲自复抓），并**否决了 reviewer 两条误报**（代次表、[1]
+> 归属——报告原本正确）。CXL/信创/TCO/控标案例的闭环见文末"结论校准与验证闭环"表。**
 
 ## 章节大纲
 
@@ -67,14 +73,25 @@ guest 透明）。评价维度据此设为：主动机制（双通路均有）�
 
 ## 二、学术热点与生产级证据
 
-学术前沿（用户以**线索**提供，已独立检索核验 [8]）：**OSDI '26 确实存在**（USENIX 技术议程）。其中
-**RamRyder**（软件定义弹性内存，把 guest 页到内存通道的映射作分配单位；报告容量/带宽利用率各
-+28.6%/+43.2%——与用户材料数字一致，警示加权交织是带宽聚合、非冷页下沉）、**MAC**（Metadata
-Acceleration，CXL DRAM 元数据加速；OSDI '26 题名可查）、**MDK**（重思数据中心内存回收，目标为 SLO 下
-多容纳作业 → 对应 DAMOS 目标 `some_mem_psi_us`、`promotion-rate` 经 `user_input` 反馈 [16]）均**已独立
-核验**；**OBASE / NEMO** 的**具体命名未能独立确认**，但其概念（冷热对象混页即 hotness fragmentation、
-句柄间接与对象重排 / MC 遥测观测）可溯到公开工作（SoarAlto "Beyond Hotness" OSDI '25 [22]、ObjecTier、
-Tidying Up the Address Space）——**按概念采信、按命名存疑**。
+学术前沿（用户以**线索**提供，主 agent 已独立核验 [8]）：OSDI '26 的 "Memory Tiering and CXL" track
+**五篇论文题名与作者全部经 USENIX 官方技术议程一手核实**（主 agent 直接抓取 [8]，含中性无提示复抓以
+排除提示污染），无一项停留在"命名存疑"：
+- **RamRyder**（"Break On Through to the Other Side: Pooling Memory Elastically with RamRyder"，Zhou/
+  Xu/Seo/Manzanares/Swanson [28]）：软件定义弹性内存，把 guest 页到内存通道的映射作分配单位；摘要
+  verbatim 报告容量/带宽利用率各 **+28.6%/+43.2%**——该数字证据级由"用户材料"**升为论文一手**，并
+  印证加权交织是带宽聚合、非冷页下沉。
+- **MAC**（"Metadata Acceleration for Sustainable Performance in Big-Data Systems with CXL DRAM"，
+  Lee/Sun/Ji 等 [8]）：CXL DRAM 元数据加速，加速的正是 kswapd 扫 `struct folio`+Xarray 的路径。
+- **NEMO**（"Finding NEMO: Nimble and Expressive Memory Observability"，Li/Giordano/Garg/Kadekodi/
+  Berger/Kasikci/Anderson/Peter [29]）：面向内存控制器的硬件遥测引擎，为 OS 各子系统提供按策略定制的
+  内存行为视图——**命名与题名已一手确认**（此前"未确认"结论已作废）。
+- **OBASE**（"Object-Based Address-Space Engineering to Improve Memory Tiering"，Banakar/Yang/Wu/
+  Arpaci-Dusseau×2/Keeton；arXiv 2603.00378 [30]）：指出分层低效根因是分配器按 size-class 摆放致冷热
+  对象混入同页的 **hotness fragmentation**，用地址空间重排使冷热各自聚页——**命名与题名已一手确认**，
+  其 hotness 谱系上承 SoarAlto "Beyond Hotness" [22]。
+- **MDK**（"Rethinking the Data Center Memory Reclamation Problem"，Patel/Yang/Wang 等 [8]）：把回收
+  目标设为"SLO 下多容纳作业"，对应 DAMOS 目标 `some_mem_psi_us`、`promotion-rate` 经 `user_input`
+  反馈 [16]。
 
 **更贴近本 MVP 的是生产级证据**：Meta 的 TMO（Transparent Memory Offloading，ASPLOS'22）在机群规模用
 PSI 驱动把冷页主动 offload 到 zswap/NVMe swap [17]；Google 远内存（ASPLOS'19）用 zswap 同理。§七 的
@@ -120,8 +137,8 @@ Environments（Memstrata，OSDI '24，微软）**[21] 表明 **CXL 分层在虚�
 | 主动分层机制 | 有：NVMe 走 DAMOS pageout/`memory.reclaim`；CXL 走 TPP/DAMON 迁移 [16] | 有：NVMe 主动分层（recency+frequency，4 KB，1:1 默认、每分层区上限 4 TB、默认关、维护模式）[1] | **同类机制，非差距** |
 | 产品化/集成 | 需手工拼装（sysctl/DAMOS/cgroup），无统一默认与 GUI [5] | 平台内建、默认护栏、GUI [1] | **核心差距** |
 | 按 VM 策略 | 内核基元在研（分层感知 memcg [12]）；今可用 DAMOS paddr + memcg 过滤到 `qemu.slice/<vmid>.scope` | 平台级 | 差在产品面 |
-| 迁移/HA | QEMU 迁移需换入慢层页；集群缺分层感知放置 | vMotion 分层页需先取回（**1.5–2×**更慢）、DRS 有分层放置逻辑 [1][18] | VMware 优势在 **DRS 放置**（迁移惩罚双方都有）|
-| 大页 | THP 整体迁移、-ENOMEM 才拆；hugetlb（1 GiB）不可分层 | 启用分层即**每 VM 关大页**、按 4 KB [18] | **双方都牺牲大页** |
+| 迁移/HA | QEMU 迁移需换入慢层页；集群缺分层感知放置 | vMotion 分层页需先取回（**1.5–2×**更慢，Broadcom 一手 best-practices 页 verbatim "vMotion will take longer (1.5X to 2X) to complete, since pages must be fetched from the NVMe tier first"，但"运行中 VM 几乎无性能影响" [31]）、DRS 有分层放置逻辑 [1] | VMware 优势在 **DRS 放置**（迁移惩罚双方都有）|
+| 大页 | THP 整体迁移、-ENOMEM 才拆；hugetlb（1 GiB）不可分层 | 启用分层即**每 VM 关大页**、按 4 KB（VMware VCF 官方博客 verbatim "ESX intentionally disables host-level large pages when Memory Tiering is configured"，且 1 GB 页 VM 自动锁 Tier 0 DRAM [34]；[18] 佐证）| **双方都牺牲大页** |
 | 故障域/安全 | 慢层设备故障丢 VM；swap 明文需 dm-crypt | 无 RAID-1 时 NVMe 故障→HA 重启（丢 VM）；加密可选 [1] | 双方慢层故障都丢 VM |
 | 成本/授权 | 开源 AGPLv3、无按核授权 | 商业订阅（Broadcom，2024-01 起停永久授权）[13] | **Proxmox 结构性顺风** |
 | 成熟度 | 分层随内核演进、产品化早期 | NVMe 分层 8.0U3 TP（4:1）[2]、**9.0 起 GA**（1:1/4TB）[1][3] | 两者都新 |
@@ -154,12 +171,38 @@ ZStack/SmartX/深信服）。
 评分：投入按人周（1=<2周,3≈2月,5=>6月）；价值按第零节目标；**证据作门槛（非乘子）**；价值按买家 JTBD
 计。近期 MVP 取"可独立交付、直击产品化差距"的切片：
 
-| 里程碑（自 2026-10）| 内容 | 门（进 M2 前须过）|
+| 里程碑（自 2026-10）| 内容 | 门 |
 |---|---|---|
-| M1（2 月）| 按 VM DAMOS pageout 策略 + memcg 过滤 + GUI + 护栏（NVMe 通路）| 与 ESXi 头对头（config E）P99 差距 ≤ +15%、密度 ≥ +50% |
+| **M1a 功能（~2 月）** | 按 VM DAMOS pageout 策略 + memcg 过滤 + GUI + 护栏（NVMe 通路）——所需内核基元 6.14 全就绪（见下"能否快速补齐"闭环）| 功能门：`memtier:` 键→DAMOS(paddr) pageout + memcg 过滤到 `<vmid>.scope`→冷页落 NVMe swap→GUI 呈现 per-VM swap/PSI，**且 VM stop/start 后自动恢复生效**（DAMOS stats 重新计数）|
+| **M1b 达标（调参预算另计，不含在 M1a 两月内）**| 在 M1a 基础上调 DAMON/DAMOS 参数至过性能门 | 与 ESXi 头对头（config E）见 §八/§九 的悬崖结构门与双指标；调参设预算上限（≤N 人日），超出即 FAIL |
 | M1 并行 | **迁移/HA 分层感知**（放置 + 迁移前预热/换入）| 迁移时长 ≤ 基线 2×；HA 故障切到无慢层节点安全 |
 | M2（3 月）| 分层感知集群放置（DRS 式）| 集群级密度提升可测 |
 | M3（4 月）| CXL 原生分层 + DAMOS SLO 策略（随内核）| 有 CXL 硬件的设计伙伴上验证 |
+
+**"能否快速补齐"闭环（工程判断，非实测）**：能，但须把 M1 拆成"功能（M1a）"与"达标（M1b）"两段
+计时。所需内核基元**在 6.14 全部就绪**（经 kernel.org v6.14 一手文档核验）：`paddr` 物理地址监控、
+`pageout` 动作、`memcg` 过滤器（把 cgroup 路径写入 `memcg_path`）、以及 **allow-list 语义**（`allow`
+文件写 `Y`/`N` 决定满足条件的内存是否允许施加动作，故"只对 `qemu.slice/<vmid>.scope` 生效"可直接
+表达）。**增强项**"分层感知内存 cgroup"（Hahn 2026-08-07 / Liu 2026-08-18 两套 LWN 在讨论的补丁系列）
+截至 2026-09 **在任何已发布内核中都不可得**——此判断由**日期论证**承重：补丁注期晚于内核 7.0（2026-05）
+发布，结构上不可能在其中；pghot/`kmigrated` 另被 LWN 记为 "likely to be stuck on the ground floor for
+some time yet" [12]。但这两者**都只是增强、非 MVP 前提**：MVP 走"每 VM 一条 scheme + memcg 过滤"与它们
+完全解耦。工作量级判断 **~1.5–2 人月（预测非实测）**，隐含前提：小队已熟悉 PVE Perl/ExtJS、仅指功能
+（非达标）、不含迁移/HA、不含上游合入、不含 guest 透明化。
+
+**五条产品化编排卡点（卡点不在引擎、不在缺基元）**：
+
+| 卡点 | 为何硬 | 证据级 |
+|---|---|---|
+| ① **memcg 过滤器 VM 重启后静默失效** | `memcg_path` 在 commit 时解析为**数字 id**；VM stop/start 令 systemd 重建 `<vmid>.scope`→新 id→过滤器持旧 id→scheme **静默变 no-op**（不报错、分层悄悄停摆）。守护进程须在每次 VM 生命周期事件后重新 commit + 看门狗 | 推断（据 lore 补丁镜像）；**极易实测**（重启 VM 看 DAMOS stats 是否归零），列 M1a 首测项 |
+| ② 单 kdamond 单 context（v6.14 原文 "only one context per kdamond is supported"）| 多 VM 可挂多 scheme 但共享采样/聚合区间与配额账；真按 VM 差异化调激进度需 N 个 kdamond=N 内核线程，CPU 随 VM 数线性增长 | 一手文档 |
+| ③ DAMON sysfs 无所有权仲裁 | 守护进程与管理员手工 `damo` 写同一棵树互相覆盖，产品须独占接口并检测外部改动 | 推断 |
+| ④ balloon/KSM 与 DAMOS pageout 无协调 | PVE 默认启用 balloon/KSM，两个互不知情的回收控制器作用于同一内存；VMware 自家数据显示 balloon 远优于盲目 swap，故 MVP 须**与 balloon 协同而非取代** | 推断 |
+| ⑤ 护栏失效爆炸半径是宿主级 | DAMOS 配额失配→跨 VM 宿主级 swap 风暴，须宿主级总配额 + PSI 熔断 | 推断 |
+
+**M1 第 0 天前置检查**：PVE 发行版内核是否编入 `CONFIG_DAMON_SYSFS/DAMON_PADDR/MEMCG`（keyless 无法
+确认发行版编译开关，故"上游 6.14 已具备"须与"PVE 是否编入"分开——一条 `grep DAMON /boot/config-$(uname -r)`
+即自证；若未编入，"两月"需加内核重建与支持策略变更）。
 
 MVP 集成点（内核侧结论=源码核验，见 [reverse-digest.md](reverse-digest.md)；Proxmox 侧集成点
 【`PVE::API2::Qemu`、`vmid.conf`、`PVE::QemuServer`】=qemu-server 源码研读，属**阅读式**，
@@ -276,15 +319,37 @@ AGPLv3 企业 SLA。
 
 ### 价值度量与可证伪假设（分通路 + 分门）
 
-| 假设 | 指标 | 预估（估算，见第十节验证）|
+| 假设 | 指标 | 结构性预测（非实测，闭环形态②：预测 + 门）|
 |---|---|---|
-| NVMe 不伤 SLO | 关键负载 P99；`pswpin/out`、`zswp*`、DAMOS stats | 待与 ESXi 头对头实测 |
-| 降成本提密度 | 介质单价、VM 密度 | 介质单价降约 40%–45%（估算 [9][10]，仅介质采购价、未含电力/磨损/CPU）|
-| CXL（期权）| P99；TPP 路径看 `pgpromote/pgdemote`，DAMON 迁移看 `pgmigrate_*`/DAMOS stats（按 VM 口径见第九节）| 待有 CXL 硬件实测 |
+| NVMe 不伤 SLO | 关键负载 P99（同报 gap-vs-E 与 inflation-vs-A 两个量）；`pswpin/out`、`zswp*`、DAMOS stats | **同量级、同悬崖结构**：双方缺页量子相同（一次 4 KB NVMe 随机读约 **20–80µs**，企业盘典型；Micron 7500 MAX 官方 70µs typ / 80µs P99 [33]），故 P99 呈**阶跃而非连续劣化**——99 分位请求要么全命中 DRAM（≈基线）、要么含至少一次缺页（跃升约 80µs）。**不给百分比区间**（p、k、基线 P99 三者皆未实测，给区间即编造）；差距方向两侧开放、风险略偏 Proxmox（双重分页 + 通用 swap 栈，见下）|
+| 降成本提密度 | 介质单价、VM 密度 | 把冷页从 DRAM 下沉 NVMe，按"下沉比例 × DRAM:NVMe 每 GB 价差"降混合介质单价：**方向明确、幅度可观，但属数量级/方向性**（[9][10] 为消费级零售现货口径，每 GB 价差已扩至约 100–150×、2024 约 30–40×；服务器 DRAM **合约价**仍在涨，TrendForce 3Q26 环比 +13–18% [35]）——**不作"约 40–45%"精确定值**，实测校准前以"混合介质单价按数量级下降"表述 |
+| CXL（期权）| P99；TPP 路径看 `pgpromote/pgdemote`，DAMON 迁移看 `pgmigrate_*`/DAMOS stats（按 VM 口径见第九节）| 见 §五 CXL 作期权论点；KVM guest 上 TPP/DAMON 的开销/精度以 CXL 硬件设计伙伴实测闭环（M3 单独门，不用 NVMe 证据判）|
 
-**kill-gate（分门）**：M1 门（NVMe）——启用 <30 分钟、且 config E（vs ESXi）P99 差距 ≤ +15%、密度
-≥ +50%、迁移 ≤ 2× 基线，达标则进 M2/M3；不达则收缩。**CXL 门在 M3 单独评**，不在第 3 月用 NVMe 证据
-判 CXL。
+**kill-gate（分门，Reviewer 对拍修正）**：M1 门（NVMe）——**先刻画负载访问偏斜 CDF/冷集占比**（否则一次
+FAIL 不可归因，分不清"负载不适合分层"还是"实现不成熟"）；启用 <30 分钟；config E（vs ESXi）**同报两个
+量**——`gap vs E`（同密度同配比）与 `inflation vs A`（相对纯 DRAM 基线），门的真实含义是"**99 分位请求
+的缺页概率 p < 约 1%/k**（k=每请求页足迹）"而非"允许 15% 劣化"；密度以"**P99 约束下的最大 VM 数**"单一
+指标表达（与 §九一致）；迁移 ≤ 2× 基线；**调参设预算上限**（≤N 人日/≤M 组参数），超出即 FAIL。**起始
+工作点取 1:2 配比**（与 TMO 证据一致，见下），zswap 作后手（其收益是**叠加**到下沉预算、以 CPU 换 I/O，
+非乘数）。达标进 M2/M3；不达则收缩。**CXL 门在 M3 单独评**。
+
+**结构性预测的依据（三条现实锚，各自只支撑其该支撑的部分）**：① **分水岭是选页质量而非介质**——
+VMware 自家白皮书实测：ballooning 下 kernel compile 内存限到 1/4 仅损 **3%** 吞吐，而 hypervisor
+swapping 同点损约 **34%**（Oracle/Swingbench 损 17%），白皮书明确归因 "random page selection policy"
+[32]；DAMOS 的热度引导与 VMware 的 recency+frequency 正是双方各自对这一缺陷的修复（该实验属 2009
+年代 FC SAN 后端，**仅作定性**，其 17–34% 高估 NVMe 时代代价）。② **TMO 不支撑 1:1**：其 10–19% NVMe
+下沉比是 PSI 自适应收敛出的**因变量** [17]，支撑的是"低下沉比 + PSI 反馈下 swap 通路在生产规模安全"；
+1:1 是**安装容量比**而非达成下沉比——+50% 密度对应约 **33%** 页面驻慢层（+100% ⇒ 50%），为 TMO 已证
+band 的 1.7–3.3 倍，**处于已证区间之外、但同量级**，正是 M1b 要测的外推区。③ **密度容量算术成立、
+但口径可比性是最大未验证假设**：热集装得进 DRAM 需密度倍数 m ≤ 1/活跃比 a；a=10–30% ⇒ m ≤ 3.3、1:1
+又压到 2，故 +50%/+100% 均在约束内，且 VMware 以 1:1 为默认并自述"多数负载 active memory 仅 10–30%"
+[1]——**这证明 2× 超分可行的负载类客观存在、且是厂商自己下的赌注**；但 Proxmox 达同等密度额外需要
+**DAMON 冷集判定与 ESXi active-memory 抽样在同一负载给出可比冷集**，而两者估计器根本不同（ESXi 每
+周期随机失效约 100 页/60 秒 + 加权移动平均、Broadcom KB 明言与 guest 内指标无关；DAMON 按区域统计
+`nr_accesses`）——**此可比性无公开对照实验，是本预测最大的未验证假设**，列 M1b 首验。**反向风险偏
+Proxmox**：host 级 swap 不透明 guest RAM 结构性暴露于**双重分页**（guest 自身回收把已被 host 换出的页
+再写向自己的 swap，VSwapper/Tesseract 有专文），ESXi 有 active-memory 抽样 + balloon 成熟协同与专建
+内存层，Linux 侧则复用为别的目的调优的通用 swap 栈。
 
 ## 九、对比测试设计（含与 ESXi 头对头）
 
@@ -304,7 +369,12 @@ AGPLv3 企业 SLA。
   迁移的按 VM 归因走"每 VM 一条 DAMOS scheme + memcg 过滤"的 `stats`，或靠 config D2 的单 VM 隔离。
   完整对照表见 [reverse-digest.md](reverse-digest.md) 收束三。
 - **两维**：热迁移（NVMe=换入风暴、CXL=常驻只是慢，分通路测）；大页（THP 整迁/拆分、hugetlb 排除）。
-- **数值门**：P99 增幅 ≤ +15%、密度 ≥ +50%、介质单价降 ≥ 20%（阈值待基线校准）。
+- **数值门（对拍修正，替代旧的"P99 ≤ +15%"循环阈值）**：先测负载偏斜 CDF；主指标为"**P99 约束下的
+  最大 VM 数**"（密度与 P99 是一条联合曲线，非两个独立阈值），同法测 config E 后比 `gap vs E`；同时报
+  `inflation vs A`（相对纯 DRAM）；判据是"99 分位请求缺页概率 p < 约 1%/k"而非固定百分比；介质单价降
+  以数量级/方向性判（不设"≥20%"伪精确阈值）；调参设人日预算上限，超出即 FAIL。**config E 必须控制
+  guest 自身是否在换页**（guest 内存 sized 到不换页，或强制同时报告 guest 级 swap 活动），否则头对头
+  被双重分页污染。
 
 ## 十、结论与投资建议
 
@@ -327,7 +397,7 @@ AGPLv3 企业 SLA。
 [5] Steve Scargall — Linux Kernel Tiering with CXL Memory（2024-05；个人博客，仅作机制入门）. https://stevescargall.com/blog/2024/05/using-linux-kernel-tiering-with-compute-express-link-cxl-memory/
 [6] LWN — Weighted interleaving for memory tiering（提案；6.9 合入据 kernelnewbies）. https://lwn.net/Articles/948037/
 [7] LWN(lore) — DAMON tiered memory management（Honggyu Kim 补丁，"11%→3–5%"为执行时间减速）. https://lwn.net/Articles/978313/
-[8] 用户提供的**线索**（OSDI 2026 Day1 Track2 Session1 + 背景综述），已独立检索核验：OSDI '26 议程见 USENIX https://www.usenix.org/conference/osdi26/technical-sessions ；RamRyder/MAC/MDK 可核验，NEMO/OBASE 命名未确认（概念见 [22] 等）.
+[8] 用户提供的**线索**（OSDI 2026 Day1 Track2 Session1 + 背景综述），主 agent 已独立核验：OSDI '26 "Memory Tiering and CXL" track 议程 https://www.usenix.org/conference/osdi26/technical-sessions ——RamRyder/MAC/NEMO/OBASE/MDK **五篇题名与作者全部一手确认**（含中性无提示复抓排除提示污染）；MAC = Lee/Sun/Ji 等，MDK = Patel/Yang/Wang 等.
 [9] Stanford DAM — Memory Prices. https://dam.stanford.edu/memory-prices.html
 [10] RAM vs SSD Price Trends（消费级市场数据，波动大，仅数量级参考）. https://rampricehistory.com/blog/ram-vs-ssd-price-trends-2026
 [11] Jinshu Liu, Hamid Hadian, Hanchen Xu, Daniel S. Berger, Huaicheng Li — Dissecting CXL Memory Performance at Scale（arXiv:2409.14317；CXL 140–410 ns）. https://arxiv.org/abs/2409.14317
@@ -337,7 +407,7 @@ AGPLv3 企业 SLA。
 [15] Proxmox — PVE 9.0 发布（2025-08-05，Debian 13，内核 6.14.8-2）. https://www.proxmox.com/en/about/company-details/press-releases/proxmox-virtual-environment-9-0
 [16] Linux 内核文档（v6.14/v6.17）— DAMON usage / DAMON_RECLAIM / cgroup-v2 `memory.reclaim` / numa demotion（经内核源码核验）. https://docs.kernel.org/admin-guide/mm/damon/
 [17] Weiner 等 — TMO: Transparent Memory Offloading in Datacenters（ASPLOS'22；PSI 驱动主动 offload 到 swap）. https://dl.acm.org/doi/10.1145/3503222.3507731
-[18] Yellow-Bricks — vSphere Memory Tiering FAQ（2026-07；启用分层每 VM 关大页、vMotion 1.5–2×、4 KB 粒度）. https://www.yellow-bricks.com/
+[18] Yellow-Bricks — vSphere Memory Tiering Considerations and FAQ（2026-07-16；关大页 + 4 KB 逐字坐实；vMotion 处仅定性"更慢"、无倍数，倍数见 [31]；本轮 keyless 重抓正常，"抓取受限"已消除）. https://www.yellow-bricks.com/2026/07/16/memory-tiering-considerations-and-frequently-asked-questions/
 [19] Proxmox — PVE 9.2 发布（2026-05，内核 7.0）与 Proxmox VE Kernel wiki. https://www.proxmox.com/en/about/company-details/press-releases
 [20] Equilibria: Fair Multi-Tenant CXL Memory Tiering at Scale（arXiv:2602.08800）. https://arxiv.org/abs/2602.08800
 [21] Zhong 等 — Managing Memory Tiers with CXL in Virtualized Environments（Memstrata，OSDI '24，Microsoft）. https://www.usenix.org/conference/osdi24
@@ -345,6 +415,14 @@ AGPLv3 企业 SLA。
 [23]–[25] 见 [reverse-digest.md](reverse-digest.md)（本案例共用编号：QEMU CXL 官方文档、damo README、逆向消化对象仓库清单）.
 [26] Linux `Documentation/admin-guide/cgroup-v2.rst`，v6.14 与 master 对照（本轮经 GitHub API 一手抓取核对 memory.stat 条目：v6.14 有 zswp*/pgdemote_*，无 pswpin/pswpout/pgpromote/pgmigrate）. https://github.com/torvalds/linux/blob/v6.14/Documentation/admin-guide/cgroup-v2.rst
 [27] Linux commit `992bf775` — mm/demotion: add support for explicit memory tiers（作者 Aneesh Kumar K.V, IBM；2022-08 作，入 v6.1；经 GitHub API 一手核验）. https://github.com/torvalds/linux/commit/992bf77591cb
+[28] Zhou, Xu, Seo, Manzanares, Swanson — Break On Through to the Other Side: Pooling Memory Elastically with RamRyder（OSDI '26；摘要 verbatim 容量/带宽利用率 +28.6%/+43.2%；主 agent 一手核验 track 议程）. https://www.usenix.org/conference/osdi26/presentation/zhou-yanbo
+[29] Li, Giordano, Garg, Kadekodi, Berger, Kasikci, Anderson, Peter — Finding NEMO: Nimble and Expressive Memory Observability（OSDI '26；内存控制器硬件遥测引擎；主 agent 一手核验）. https://www.usenix.org/conference/osdi26/presentation/li-shihang
+[30] Banakar, Yang, Wu, Arpaci-Dusseau, Arpaci-Dusseau, Keeton — OBASE: Object-Based Address-Space Engineering to Improve Memory Tiering（OSDI '26；hotness fragmentation + 地址空间重排；arXiv:2603.00378）. https://www.usenix.org/conference/osdi26/presentation/banakar
+[31] Broadcom TechDocs — Memory Tiering Considerations and Best Practices（vSphere 9.1；verbatim "vMotion will take longer (1.5X to 2X) to complete, since pages must be fetched from the NVMe tier first"；主 agent 一手核验）. https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere/9-1/vsphere-resource-management/memory-tiering-over-nvme/memory-tiering-considerations-and-best-practices.html
+[32] VMware — Understanding Memory Management/Resource Management（白皮书；ballooning 损 3% vs hypervisor swapping 损 34%，归因 "random page selection policy"；2009 年代 FC SAN，仅定性）. https://www.vmware.com/docs/perf-vsphere-memory_management
+[33] Micron 7500 MAX NVMe SSD 延迟规格（4 KB 随机读 70µs typ / 80µs P99；企业盘缺页量子锚）. https://simplyblock.io/glossary/nvme-latency/
+[34] VMware VCF Blog（Dave Morera, 2026-06-18）— Understanding Large Memory Pages with Advanced Memory Tiering（verbatim "ESX intentionally disables host-level large pages when Memory Tiering is configured"；1 GB 页 VM 自动锁 Tier 0）. https://blogs.vmware.com/cloud-foundation/2026/06/18/understanding-large-memory-pages-with-vmware-advanced-memory-tiering/
+[35] TrendForce — Server DRAM Contract Prices Expected to Rise 13-18% QoQ in 3Q26（2026-07-09；合约价方向锚，主 agent verbatim 核验）. https://www.trendforce.com/presscenter/news/20260709-13140.html
 
 ## 修订说明（v4，经两轮 7 路评审）
 
