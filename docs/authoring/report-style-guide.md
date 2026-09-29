@@ -141,5 +141,5 @@
 
 ## 参考资料
 
-[1] Mermaid 官方文档. https://mermaid.js.org/
-[2] STORM: Assisting in Writing Wikipedia-like Articles From Scratch with Large Language Models（arXiv:2402.14207）. https://arxiv.org/abs/2402.14207
+- [1] Mermaid 官方文档. https://mermaid.js.org/
+- [2] STORM: Assisting in Writing Wikipedia-like Articles From Scratch with Large Language Models（arXiv:2402.14207）. https://arxiv.org/abs/2402.14207
