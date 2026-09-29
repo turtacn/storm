@@ -180,8 +180,17 @@ general-purpose，各自又 spawn 了嵌套对拍子代理（峰值 21 个），
 form ②（预测 + 门）闭环。
 
 **用户外部输入的采纳**：用户提供两条——"无实测主机"（据此把头对头等实测项定为 form ② 预测+门）、"YYY
-泛化到国产 KVM HCI（Sangfor/SmartX）"（据此把信创改双形态，并按 hint 原则核验：二者与 PVE 同承 Linux/
-KVM，具体入围条目主 agent 未独立核验、如实标注）。
+泛化到国产 KVM HCI（Sangfor/SmartX）"（据此把信创改双形态）。按 hint 原则**独立核验并纠正了用户线索**：
+Sangfor/SmartX 经厂商官方页确认是**自研 KVM 栈、非"PVE 衍生"**（深信服官网还公开对标攻击 Proxmox）。
+
+**信创路 reviewer 末轮的价值（stop 后仍 flush 出完整结论，主 agent 逐条一手复核）**：查出并纠正了报告
+一处**实质事实错误**——"信创内核太旧→分层链条不转移"被证伪：openEuler 自带 etmem 内存分级（主 agent
+WebFetch gitee 核验）、天翼云已产线，swap 分层通路今日即可在信创内核落地，仅 CXL 迁移通路（DAMOS
+migrate 6.11+）暂缺。另把价格结论由 form ③（NDA 不可得）**升级为 form ②**：Proxmox 官网 €550/€1100 每
+插槽（主 agent verbatim 核验）对 VMware 渠道估算 VCF≈$350/核，双路 64 核约 18×–21×，并删除两处会被
+VMware 一击否定的错误（$400 双计、"72 核起订"）。教训：① reviewer 被 TaskStop 后，其 finalize 仍可能
+flush 出完整成果，不应假设 stop=无产出；② 高价值一手结论（etmem、Sangfor 竞品页、Proxmox 价目）主 agent
+逐条 WebFetch 复核后才写入，openEuler DAMON backport 的 defconfig 细节未能亲核者如实标"据对拍"。
 
 **全仓自闭环清扫（规则落地后的整体迭代）**：派三路 Fable-5 只读审计员并行扫 23 份文档（案例组 8、
 SOP 核心组 5、扩展与技能组 12——vendored 内容除外），逐处核查 `[n]` 引注与跨文档链接。结果：

@@ -144,7 +144,10 @@ Environments（Memstrata，OSDI '24，微软）**[21] 表明 **CXL 分层在虚�
 | 成本/授权 | 开源 AGPLv3、无按核授权 | 商业订阅（Broadcom，2024-01 起停永久授权）[13] | **Proxmox 结构性顺风** |
 | 成熟度 | 分层随内核演进、产品化早期 | NVMe 分层 8.0U3 TP（4:1）[2]、**9.0 起 GA**（1:1/4TB）[1][3] | 两者都新 |
 
-一句话：**差距在"整合成品"，不在"分层引擎"。**"主动分层机制"一行的函数级依据（观测/降级/换出/
+一句话：**差距在"整合成品"，不在"分层引擎"。** 这一论点有一个**来自竞争对手的外部现实锚**：国产 KVM
+HCI 深信服在其官网对标页公开攻击 Proxmox——称在企业环境部署 Proxmox"需 IT 团队自行集成分离的服务器、
+存储与网络" [40]。一个自研 KVM 平台的厂商，用来打 Proxmox 的正是"缺产品化整合"，恰好印证本节判断
+（也说明这条差距是真实的商业战场，而非纸面分析）。"主动分层机制"一行的函数级依据（观测/降级/换出/
 提升四件套在上游齐备）见 [reverse-digest.md](reverse-digest.md)（其"反哺"节把 ADR-0001/0003 由概念级
 证据升为函数级）。"大页"一行 Linux 侧的机制位置——`migrate_pages()` 整体迁移大 folio、目标侧分配
 失败才 split 重试；hugetlb 不入 LRU、既不换出也不降级——亦见 reverse-digest（标注为阅读式）。
@@ -300,14 +303,22 @@ graph LR
 的衍生/同类 HCI**（深信服 aSV / Sangfor HCI、SmartX SMTX OS/ELF 等——它们与 PVE **同承 Linux/KVM 上游**，
 故本报告的内核分层机制分析对它们同等适用；证据级：KVM 基座属业界共识，具体入围/认证条目主 agent 本轮
 未能独立核验，见"结论校准与验证闭环"表）。据此信创分两形态：
-- **形态 A（Proxmox VE 直接入目录）**：Proxmox 为奥地利厂商（Proxmox Server Solutions GmbH），直接进
-  中国信创/央采目录**现实可及性低**（目录重"国产厂商主体/自主可控"）——现实路径是国内厂商基于其
-  AGPL 源码的二次发行，而非 Proxmox 原厂。
-- **形态 B（国产 KVM HCI）**：深信服/SmartX 等**本就在国产化生态经营**，主体资格不是问题。但**分层特性
-  仍受内核代次卡住**：信创 OS（麒麟、统信 UOS）内核多停留在 5.x/6.6 一线（据对拍 reverse 轴：麒麟 V11≈
-  6.6、UOS V20≈4.19，主 agent 未逐一再核），**滞后于分层所需的 6.14+**；国产 CPU（鲲鹏/飞腾/龙芯）
-  多无公开 CXL 支持。故"内核 6.14+ 分层"这条链在信创现实可及的仅**"x86 信创（海光/兆芯）+ 可上 6.14+
-  内核 + 无 CXL + 非 CoCo"**子集。
+- **形态 A（Proxmox VE 本体入目录）无资格**：卡点是可核验的**主体门槛**——信创/安全可靠测评要求送测/
+  申报主体为**中国境内注册实体** + 与国产 CPU/OS 完成适配认证，奥地利 Proxmox Server Solutions GmbH 以
+  AGPLv3 发行的本体过不了主体这一关。技术上虽有社区分支 **PXVIRT**（覆盖鲲鹏/飞腾/龙芯）证明移植可行，
+  但它是无公司主体、因商标改名的个人分支，不构成企业二次发行版或产业先例。
+- **形态 B（国产同类 HCI）可经营，但是竞争者而非渠道**：深信服 aSV、SmartX ELF **是与 PVE 同承 Linux/
+  KVM 上游的自研栈，并非"PVE 衍生"**（用户此半句已据厂商官方纠正：SmartX 自述"基于 KVM 开发"、深信服
+  aSV"以 KVM 为核心引擎"）；且深信服官网**公开对标攻击 Proxmox**——原话称在企业环境部署 Proxmox"需 IT
+  团队自行集成分离的服务器、存储与网络" [40]，这恰是**竞争对手亲口印证本报告核心论点"差距在产品化不在
+  引擎"**。
+- **关键纠正——分层通路在信创内核今天即可落地（此前"内核太旧、链条不转移"的判断被证伪）**：分层跑在
+  **host 内核**；麒麟 V10 SP3 虽仅 4.19.90、openEuler 出货天花板 6.6，但 **NVMe/swap 分层通路（TMO 式：
+  reclaim/zswap/zram）在这些内核上已可用**——openEuler 自带 **etmem 内存分级**（DRAM+压缩/高性能存储多级、
+  冷数据主动写 swap，天翼云已部署 [39]），并已 backport DAMON（据对拍：openEuler 24.03 的 6.6 上
+  DAMON_RECLAIM 全开，主 agent 未逐条再核）。信创真正卡住的**只是 CXL/NUMA 的 DAMOS 迁移动作**（内核 6.11
+  的 `migrate_hot/cold`、6.16 的配额目标、6.17 的 vaddr 迁移）+ 国产 CPU 多无公开 CXL——而那本就是"期权"
+  通路。故信创现实可及的是**"swap 分层今日可交付 + CXL 迁移暂缺"**，而非整链不可得。
 
 **CoCo 边界（v4.5 纠正因果）**：机密计算（SEV-SNP/TDX）VM 的**私有内存在现行 Linux 下不能被 host 动态
 分层（swap/迁移）**——但这是**实现缺口、非加密的架构禁止**：AMD（`SNP_PAGE_MOVE`/`SNP_PAGE_SWAP_OUT`）
@@ -319,9 +330,15 @@ migrated." [36]；ABI 细节据对拍一手核验、主 agent 未逐条再核）
 不承诺私有页动态分层。
 
 定价：核心 AGPLv3，企业订阅=源码+支持+SLA（**分层 GUI/策略须在 AGPL 核心，否则与"不得按核解锁"控标
-条款自相矛盾**）。价格结构性差异是护城河的耐久驱动——Proxmox **按 CPU 插槽定额订阅 + 可选**对 VMware
-VCF **按核强制订阅**；**精确比值公开不可得**（Broadcom 2024 后实价多在 NDA），故报告以"结构性不对称"
-而非某个倍数支撑 TCO 论点（见闭环表 4c）。
+条款自相矛盾**）。**价格比值（公开锚点快照，2026-09-29）**：Proxmox **按占用 CPU 插槽计价、与核数无关**
+——Community €120 / Basic €370 / Standard €550 / Premium €1,100 每路每年（官网价目一手核验 [41]）；
+VMware 经 Broadcom 改**按核订阅**，**无公开企业价目表**——per-core 数字来自渠道 VCSP 价目与高管在录
+（VCF≈$350/核/年、VVF≈$135/核/年，每 CPU 最低按 16 核，均标为**渠道估算**、同一产品第三方口径可差 5 倍）。
+据此在双路、每路 32–96 核上，**VCF 对 Proxmox Premium 约 9×–27×（64 核居中约 18×–21×），中档 VVF 对
+Standard 约 7×–21×**；根因是 **Proxmox 与核数解耦、VMware 随核数线性膨胀**，核越密差距越大。**须避免两个
+易被反驳的错误**：不把已含在订阅内的支持维护与 vCenter 再计为"全成本"（双计），也不引用已被 Broadcom
+否认的"72 核最小起订"。核心事实稳健：**VMware 每插槽订阅高出 Proxmox 一到两个数量级**，印证 §五"无按核
+授权 TCO"是结构性顺风。
 
 ## 八、MVP 价值兑现
 
@@ -471,6 +488,9 @@ Proxmox**：host 级 swap 不透明 guest RAM 结构性暴露于**双重分页**
 [36] LWN（Jonathan Corbet）— The state of guest_memfd（2025-04-04；verbatim "Private memory cannot (on the host) be mapped into user space, swapped out, or migrated."；主 agent 一手核验此句）. https://lwn.net/Articles/1016133/
 [37] 中国政府采购网 — 宁波市第二医院 VMware 迁建改造及超融合建设项目中标结果公告（2026-09-28；采购人 宁波市第二医院，中标 宁波华力信息系统工程有限公司，¥314.96 万；主 agent keyless WebFetch 核验）. http://www.ccgp.gov.cn/cggg/dfgg/zbgg/202609/t20260928_27406770.htm
 [38] 中国政府采购网 — 2026 年瑞安市人民医院国产化超融合集群采购项目中标结果公告（2026-09-24；采购人 瑞安市人民医院，中标 浙江众成科技有限公司，¥97.5 万；主 agent keyless WebFetch 核验）. http://www.ccgp.gov.cn/cggg/dfgg/zbgg/202609/t20260924_27400998.htm
+[39] openEuler etmem — 内存分级扩展（DRAM+压缩/高性能存储多级、冷数据主动写 swap；天翼云已部署；主 agent 一手核验其定位）. https://gitee.com/openeuler/etmem
+[40] 深信服 Sangfor HCI vs Proxmox 对标页（厂商官方；verbatim "requires IT teams to manually integrate and manage separate servers, storage, and networking"；aSV "using KVM as its core engine"；主 agent 一手核验）. https://www.sangfor.com/cloud-and-infrastructure/competitors/sangfor-vs-proxmox-comparison
+[41] Proxmox VE Pricing（官网；Community €120 / Basic €370 / Standard €550 / Premium €1,100，每占用 CPU 插槽/年、与核数无关；主 agent verbatim 核验）. https://www.proxmox.com/en/products/proxmox-virtual-environment/pricing
 
 ## 修订说明（v4，经两轮 7 路评审）
 
@@ -511,7 +531,12 @@ Proxmox**：host 级 swap 不透明 guest RAM 结构性暴露于**双重分页**
   **否决 reviewer 两条误报**（代次表、[1] 归属——报告原本正确）。⑩ **控标真实案例由 form ③ 升级为
   form ①**：WebSearch 预算耗尽后改用 keyless WebFetch 直取 ccgp.gov.cn 搜索端点（符合无授权策略），补入
   两例真实中标公告（宁波二院 VMware 迁建改造 [37]、瑞安人民医院国产化超融合 [38]），采购人/金额/日期/
-  URL 一手核验、不臆断品牌。
+  URL 一手核验、不臆断品牌。⑪ **信创路 reviewer 末轮返修（主 agent 逐条一手复核）**：纠正报告"信创内核
+  太旧→分层链条不转移"——openEuler 自带 etmem 内存分级、天翼云已产线 [39]，**swap 分层今日即可落地**，
+  仅 CXL 迁移通路暂缺；纠正用户"PVE 衍生"——深信服/SmartX 是自研 KVM 竞争者（深信服官网公开对标攻击
+  Proxmox"需自行集成服务器/存储/网络" [40]，反证"差距在产品化"）；价格由 form ③ 升级 form ②（Proxmox
+  官网 €550/€1100 每插槽 [41] 对 VMware 渠道估算 VCF≈$350/核，双路 64 核约 18×–21×），并删除易被反驳的
+  $400 双计与"72 核起订"。
 
 ## 结论校准与验证闭环（无悬留存疑）
 
@@ -527,9 +552,9 @@ Proxmox**：host 级 swap 不透明 guest RAM 结构性暴露于**双重分页**
 | CXL·KVM guest 上 TPP/DAMON 开销精度 | ② 判断+门 | **非空白**：虚拟化/KVM 环境 CXL 分层已有系统研究（Memstrata OSDI'24 [21]、Equilibria [20]），开销可接受；仍非 Proxmox+DAMON 直接实测 → M3 CXL 门验证 | 论文一手 [20][21] + 据对拍 |
 | CXL·国产/主流 CPU 可得性 | ①+③ | Intel（SPR/EMR/GNR）、AMD（Genoa/Turin）支持 CXL；**国产 CPU（鲲鹏/飞腾/龙芯）多无公开 CXL 支持**——加强"信创 + CXL 不可兼得" | 公开（Intel/AMD）+ 推断（国产：无公开支持=负证）|
 | CXL·VMware 路线 | ③→负证 | **未 GA、近期降温**：9.0/9.1 一手文档 CXL 命中 0（主 agent 亲验）、Tier 1 一手仅定义为 NVMe；唯一一手表态是 Explore 2024 Peaberry 前瞻演示（带免责）——加强"CXL 作期权" | 主 agent 亲验（负证）+ 据对拍（Peaberry，单源未再核）|
-| 信创目录资格（YYY 双形态）| ② 判断 | **形态 A（Proxmox 原厂入目录）可及性低**；**形态 B（国产 KVM HCI：深信服/SmartX）可正常经营**，但分层特性受信创 OS 内核代次（麒麟≈6.6/UOS≈4.19，滞后 6.14+）与国产 CPU 无 CXL 卡住 | 业界共识（KVM 基座）+ 据对拍（内核版本）+ **入围/认证具体条目主 agent 未独立核验** |
+| 信创目录资格（YYY 双形态）| ② 判断（含一处纠错）| **形态 A（Proxmox 本体）无资格**（境内注册主体门槛）；**形态 B（深信服/SmartX）是自研 KVM 竞争者非渠道**（深信服官网公开对标攻击 Proxmox [40]，反证"差距在产品化"）；**纠错：swap 分层通路今日即可在信创内核落地**（openEuler etmem 已产线 [39]），仅 CXL 迁移通路暂缺——此前"内核太旧、链条不转移"被证伪 | 厂商官方（KVM 基座/竞品页 [40]、etmem [39]）+ 据对拍（openEuler DAMON backport 未逐条再核）+ 入围条目不可得 |
 | CoCo 边界 | ① 事实（纠正因果）| CoCo 私有内存在现行 Linux **不能被 host 动态分层**，但系**实现缺口非加密架构禁止**（厂商固件 ABI 已具备、Linux 未接；`guest_memfd` 限制对非机密 guest 同样成立）；**共享页可分层、静态 NUMA 放置今可用** | LWN guest_memfd 一手 verbatim [36]（主 agent 核验）+ ABI 据对拍一手（主 agent 未逐条再核）|
-| 企业级价格比值 | ③ 判定+处理 | **精确比值公开不可得**（Broadcom 2024 后实价多在 NDA）；耐久驱动是**结构性不对称**——按插槽定额+可选 对 按核强制订阅，报告以此支撑 TCO 论点而非某倍数 | 结构性事实（公开授权模型）+ 精确价"不可得"判定 |
+| 企业级价格比值 | ②（由③升级）| **给出可核验数量级比值**：Proxmox 按插槽（Std €550/Prem €1,100，官网一手 [41]）对 VMware 按核（VCF≈$350、VVF≈$135/核，渠道估算），双路 32–96 核 **VCF÷Premium 约 9×–27×、64 核约 18×–21×**；避免 $400 双计与"72 核起订"（Broadcom 已否认）| Proxmox 官方一手 [41] + VMware **渠道/高管在录估算**（无公开价目，标注）|
 | 非介质 TCO | ② 判断 | 净方向**仍为正**（Meta TMO 机群生产验证 swap 分层可行 [17]），但须从"介质单价降幅"扣除 NVMe 写放大/DWPD 磨损、回收/换页 CPU、功耗——故报告降幅表述为"数量级/方向性"而非定值 | TMO 一手 [17] + 推断（扣减项）|
 | OSDI '26 命名（NEMO/OBASE 等）| ① 事实 | 五篇题名/作者**全部一手确认** [8][28][29][30]；NEMO/OBASE"未确认"结论作废；RamRyder +28.6/+43.2% 升为论文一手 | USENIX 议程一手（主 agent 复抓）|
 | [9][10] 价格数据 | ① 事实（限定）| 消费级零售口径、高波动，仅支撑数量级/方向；补服务器 DRAM **合约价**权威锚 TrendForce [35] | 主 agent 核验来源性质 |
