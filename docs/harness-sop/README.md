@@ -127,8 +127,9 @@ graph TD
 
 - **输入**：`XXX`（技术或产品方向）、`YYY`（本方产品）、`ZZZ`（对标产品）；可选目标客户、
   行业、招投标背景。
-- **产出**：一份对标分析报告，落到 `docs/harness-sop/examples/`，章节骨架见
-  [report-outline.md](report-outline.md)。
+- **产出**：一份对标分析报告，落到 `docs/harness-sop/examples/`，章节沿"研究背景 → 学术热点 →
+  差距分析 → 行动路线 → MVP 架构 → 价值兑现 → 结论"推进（完整占位骨架见
+  [report-outline.md](report-outline.md)）。
 
 ## 如何触发
 

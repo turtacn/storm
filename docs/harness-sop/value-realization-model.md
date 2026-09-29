@@ -203,8 +203,8 @@ FAB → 客户利益 → 控标差异化，本质上就是这条价值链的对�
   不得与打分自相矛盾。
 - **全资产参与**：本仓库已集成的资产（`storm-research`、grilling 套件、`domain-modeling`、
   `report-authoring`、无授权检索、`vendor/reverse-skill`、`scholar-slides` 等）都要在每次对标中
-  参与——主线用得上就用，用不上也要进"对拍"或校验环节；**闲置资产视为质量隐患**。资产参与映射见
-  `competitive-analysis/SKILL.md`。
+  参与——主线用得上就用，用不上也要进"对拍"或校验环节；**闲置资产视为质量隐患**。资产参与映射
+  （哪项资产在哪个阶段、以主线/对拍/校验哪种角色参与）见 `competitive-analysis/SKILL.md`。
 - **用户输入即线索（hints，非结论）**：用户提供的材料是**线索**，须经独立 research **核验并发散**后
   再用——能核验则正常引注；不能核验则明说"无法确定"，**不得原样当"未核验材料"去支撑结论**。（本案例
   据此把 OSDI '26 从"未核验"升级为已核验的 RamRyder/MAC/MDK + 命名存疑的 NEMO/OBASE。）

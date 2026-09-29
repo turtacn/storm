@@ -288,7 +288,9 @@ AGPLv3 企业 SLA。
 
 ## 九、对比测试设计（含与 ESXi 头对头）
 
-见 [benchmark-plan.md](benchmark-plan.md) 与 [scripts/](scripts/)。要点（v4 修正）：
+见 [benchmark-plan.md](benchmark-plan.md) 与 [scripts/](scripts/)（三个脚本骨架：`setup-tiers`
+配置分层、`run-bench` 编排跑测、`collect-metrics` 只读采集；改系统状态的默认 DRY-RUN，须显式
+`MTP_CONFIRM=1` 才执行）。要点（v4 修正）：
 - **配置**：A 纯 DRAM；B NVMe DAMOS pageout（无 zswap）；B-z 叠 zswap；C 1:2；**D2 DAMON paddr+memcg
   迁移**（CXL，`demotion_enabled=false`/`numa_balancing=0` 隔离）；**E ESXi 9 分层 1:1（同硬件头对头）**。
 - **逼出分层**：host `mem=` 或 `memory.high` 压低快层。

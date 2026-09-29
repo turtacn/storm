@@ -2,7 +2,8 @@
 
 本文件是 `competitive-analysis` SOP 产出的**报告骨架模板**。生成案例时，复制本骨架到
 `docs/harness-sop/examples/`，逐节替换占位内容。所有图表须符合
-[`../authoring/mermaid-style-guide.md`](../authoring/mermaid-style-guide.md)，全文须符合
+[`../authoring/mermaid-style-guide.md`](../authoring/mermaid-style-guide.md)（中文文本、括号一律
+全角（）、换行用 `<br>`、`%%` 注释独占一行、图例置顶配专业色），全文须符合
 [`../authoring/report-style-guide.md`](../authoring/report-style-guide.md)（大纲先行、结论
 置后、表格对比、`[n]` 引注、防幻觉）。
 

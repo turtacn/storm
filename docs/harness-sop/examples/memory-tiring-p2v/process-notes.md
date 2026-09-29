@@ -126,7 +126,8 @@ reverse 轮对 v6.14 的核验），QEMU CXL 与 damo 为**本轮一手文档核
    **对拍的一手核验我方全部亲手复核后才采纳**（GitHub API 查提交作者、双通道抓 v6.14/master
    `cgroup-v2.rst`），复核还多查明一处**利好**：v6.14 已有按 cgroup 的 `pgdemote_*`，按 VM 采降级
    即刻可行。9 条必修 + 8 条建议全部落地（含 digest 补大页/热迁移/`mpol_misplaced` 锚点与
-   "收束三·计数器与按 VM 观测面"；benchmark-plan/采集脚本/pptx 同步修正）。
+   "收束三·计数器与按 VM 观测面"；benchmark-plan、采集脚本与案例讲解用的原生可编辑幻灯
+   mt-v1.pptx 同步修正）。
 
 **元教训（回灌依据）**：① "接线"本身要对拍——v4.3 只做挂接、未重审底座，对拍立刻抓出双向悬空
 引用与分级标签被扩张（"内核源码核验"罩住了 Proxmox 用户态主张）；② reviewer 的一手核验结论同样
@@ -138,3 +139,12 @@ reverse 轮对 v6.14 的核验），QEMU CXL 与 damo 为**本轮一手文档核
 report-style-guide（新节 + 自检项）、CLAUDE.md、report-authoring/competitive-analysis 两技能与
 report-outline 模板，并顺手修正 extensions/README 一处纯跳转引用（修正过程中还拦下一次自造
 "方案二"的幻觉）。本案例 v4.3/v4.4 的全部新增引用均按此规则书写。
+
+**全仓自闭环清扫（规则落地后的整体迭代）**：派三路 Fable-5 只读审计员并行扫 23 份文档（案例组 8、
+SOP 核心组 5、扩展与技能组 12——vendored 内容除外），逐处核查 `[n]` 引注与跨文档链接。结果：
+**重违规 0、轻 11**，其中 10 处已修——补脚本一句话描述（DRY-RUN 语义经亲手核实脚本后才写入）、
+在 reverse-digest 引用处就地概括方法要点、纠正 benchmark-plan 两处跨文档章节号错标（§十→§九、
+§七→§八）、SKILL 就地列出记分卡七维（用价值模型真实维度，弃用审计员自拟模板）、SOP 各 README
+的骨架/映射指针补就地概括；1 处表格单元格压缩按规则的紧凑豁免保留。多份文档（CONTEXT、三份
+ADR、authoring/extensions 全部）被判整体合规，report-outline §四与价值模型必过门的写法被审计员
+引为样板。
