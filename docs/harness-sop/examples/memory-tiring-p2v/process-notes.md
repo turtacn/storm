@@ -99,3 +99,14 @@ OSDI'25、ObjecTier）；并挖到直接相关的已核验源 **Equilibria [20]*
 Managing Memory Tiers with CXL in Virtualized Environments（OSDI'24）[21]**，后者部分回应了"KVM guest 上
 分层无实测"之虑。原则已写进 SOP（价值模型/骨架/技能三处）：**用户材料是线索，须 research 核验/发散，
 不得原样当"未核验材料"支撑结论**。
+
+## v4.2 · 逆向学习（reverse 技能消化开源栈）
+
+按用户给的课程（作为线索）执行 reverse 技能（开源形态），产出两份：SOP 层的可复用方法
+[reverse-learning-map](../../reverse-learning-map.md)（按逆向学习价值排序、每仓库一问、观测/布局/
+放置/回收四分法、名词贴回函数）；案例层的 [reverse-digest](reverse-digest.md)（P0–P3 逐仓库源码级
+答案 + 论文增量表 + 对 v4 的反哺）。证据分级如实标注：内核 mm 主干为**源码核验**（沿用 Fable-5
+reverse 轮对 v6.14 的核验），QEMU CXL 与 damo 为**本轮一手文档核验**（CFMW 经 ACPI CEDT、QEMU 不仿真
+一致性协议；damo 的热判断在内核、`--damos_action pageout` 一键接观测到动作），其余为**阅读式**；
+未运行部分并入 benchmark 执行前置。反哺：ADR-0001/0003 由概念级证据升为函数级；damo 分工可作 MVP
+观测面参照；OBASE/MAC 维持远期评级的依据落实。

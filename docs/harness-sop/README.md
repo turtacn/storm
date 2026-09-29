@@ -147,6 +147,8 @@ graph TD
 
 - 报告骨架：[report-outline.md](report-outline.md)（与问题范式一一对应，含合规的 Mermaid/
   表格占位）。
+- 逆向学习地图：[reverse-learning-map.md](reverse-learning-map.md)——用 reverse 技能消化开源栈的
+  可复用方法（按逆向学习价值排序、每仓库一问、观测/布局/放置/回收四分法）。
 - 案例目录：[examples/](examples/)，命名建议 `XXX-YYY-vs-ZZZ-YYYYMM`。
 
 ## 结论
