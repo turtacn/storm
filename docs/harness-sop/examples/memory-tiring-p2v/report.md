@@ -452,45 +452,45 @@ Proxmox**：host 级 swap 不透明 guest RAM 结构性暴露于**双重分页**
 
 ## 参考资料
 
-[1] Broadcom TechDocs — Memory Tiering over NVMe（vSphere 9.1，含 considerations）. https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere/9-1/vsphere-resource-management/memory-tiering-over-nvme.html
-[2] VMware Cloud Foundation Blog — Memory Tiering Tech Preview（8.0U3，4:1 默认，2024-07-18）. https://blogs.vmware.com/cloud-foundation/2024/07/18/vsphere-memory-tiering-tech-preview-in-vsphere-8-0u3/
-[3] Lenovo Press — Memory Tiering over NVMe on ESXi 9.0（LP2288，内容需登录）. https://lenovopress.lenovo.com/lp2288
-[4] Proxmox VE Wiki — Dynamic Memory Management（KSM/ballooning）. https://pve.proxmox.com/wiki/Dynamic_Memory_Management
-[5] Steve Scargall — Linux Kernel Tiering with CXL Memory（2024-05；个人博客，仅作机制入门）. https://stevescargall.com/blog/2024/05/using-linux-kernel-tiering-with-compute-express-link-cxl-memory/
-[6] LWN — Weighted interleaving for memory tiering（提案；6.9 合入据 kernelnewbies）. https://lwn.net/Articles/948037/
-[7] LWN(lore) — DAMON tiered memory management（Honggyu Kim 补丁，"11%→3–5%"为执行时间减速）. https://lwn.net/Articles/978313/
-[8] 用户提供的**线索**（OSDI 2026 Day1 Track2 Session1 + 背景综述），主 agent 已独立核验：OSDI '26 "Memory Tiering and CXL" track 议程 https://www.usenix.org/conference/osdi26/technical-sessions ——RamRyder/MAC/NEMO/OBASE/MDK **五篇题名与作者全部一手确认**（含中性无提示复抓排除提示污染）；MAC = Lee/Sun/Ji 等，MDK = Patel/Yang/Wang 等.
-[9] Stanford DAM — Memory Prices. https://dam.stanford.edu/memory-prices.html
-[10] RAM vs SSD Price Trends（消费级市场数据，波动大，仅数量级参考）. https://rampricehistory.com/blog/ram-vs-ssd-price-trends-2026
-[11] Jinshu Liu, Hamid Hadian, Hanchen Xu, Daniel S. Berger, Huaicheng Li — Dissecting CXL Memory Performance at Scale（arXiv:2409.14317；CXL 140–410 ns）. https://arxiv.org/abs/2409.14317
-[12] LWN — Recent work in memory tiering（Corbet，2026-09；pghot、分层感知 memcg；未涉 NVMe/swap）. https://lwn.net/Articles/1092001/
-[13] The Register — Broadcom 停 VMware 永久授权、停免费 ESXi（2024-02-13；另见 Broadcom KB 309138，替代 2024-01-15 的 KB 96168）. https://www.theregister.com/2024/02/13/broadcom_ends_free_esxi_vsphere/
-[14] Tom's Hardware — Intel 结束 Optane 业务（2022-07）. https://www.tomshardware.com/news/intel-kills-optane-memory-business-for-good
-[15] Proxmox — PVE 9.0 发布（2025-08-05，Debian 13，内核 6.14.8-2）. https://www.proxmox.com/en/about/company-details/press-releases/proxmox-virtual-environment-9-0
-[16] Linux 内核文档（v6.14/v6.17）— DAMON usage / DAMON_RECLAIM / cgroup-v2 `memory.reclaim` / numa demotion（经内核源码核验）. https://docs.kernel.org/admin-guide/mm/damon/
-[17] Weiner 等 — TMO: Transparent Memory Offloading in Datacenters（ASPLOS'22；PSI 驱动主动 offload 到 swap）. https://dl.acm.org/doi/10.1145/3503222.3507731
-[18] Yellow-Bricks — vSphere Memory Tiering Considerations and FAQ（2026-07-16；关大页 + 4 KB 逐字坐实；vMotion 处仅定性"更慢"、无倍数，倍数见 [31]；本轮 keyless 重抓正常，"抓取受限"已消除）. https://www.yellow-bricks.com/2026/07/16/memory-tiering-considerations-and-frequently-asked-questions/
-[19] Proxmox — PVE 9.2 发布（2026-05，内核 7.0）与 Proxmox VE Kernel wiki. https://www.proxmox.com/en/about/company-details/press-releases
-[20] Equilibria: Fair Multi-Tenant CXL Memory Tiering at Scale（arXiv:2602.08800）. https://arxiv.org/abs/2602.08800
-[21] Zhong 等 — Managing Memory Tiers with CXL in Virtualized Environments（Memstrata，OSDI '24，Microsoft）. https://www.usenix.org/conference/osdi24
-[22] Liu, Hadian, Xu 等 — Tiered Memory Management Beyond Hotness（SoarAlto，OSDI '25）. https://www.usenix.org/conference/osdi25/presentation/liu
-[23]–[25] 见 [reverse-digest.md](reverse-digest.md)（本案例共用编号：QEMU CXL 官方文档、damo README、逆向消化对象仓库清单）.
-[26] Linux `Documentation/admin-guide/cgroup-v2.rst`，v6.14 与 master 对照（本轮经 GitHub API 一手抓取核对 memory.stat 条目：v6.14 有 zswp*/pgdemote_*，无 pswpin/pswpout/pgpromote/pgmigrate）. https://github.com/torvalds/linux/blob/v6.14/Documentation/admin-guide/cgroup-v2.rst
-[27] Linux commit `992bf775` — mm/demotion: add support for explicit memory tiers（作者 Aneesh Kumar K.V, IBM；2022-08 作，入 v6.1；经 GitHub API 一手核验）. https://github.com/torvalds/linux/commit/992bf77591cb
-[28] Zhou, Xu, Seo, Manzanares, Swanson — Break On Through to the Other Side: Pooling Memory Elastically with RamRyder（OSDI '26；摘要 verbatim 容量/带宽利用率 +28.6%/+43.2%；主 agent 一手核验 track 议程）. https://www.usenix.org/conference/osdi26/presentation/zhou-yanbo
-[29] Li, Giordano, Garg, Kadekodi, Berger, Kasikci, Anderson, Peter — Finding NEMO: Nimble and Expressive Memory Observability（OSDI '26；内存控制器硬件遥测引擎；主 agent 一手核验）. https://www.usenix.org/conference/osdi26/presentation/li-shihang
-[30] Banakar, Yang, Wu, Arpaci-Dusseau, Arpaci-Dusseau, Keeton — OBASE: Object-Based Address-Space Engineering to Improve Memory Tiering（OSDI '26；hotness fragmentation + 地址空间重排；arXiv:2603.00378）. https://www.usenix.org/conference/osdi26/presentation/banakar
-[31] Broadcom TechDocs — Memory Tiering Considerations and Best Practices（vSphere 9.1；verbatim "vMotion will take longer (1.5X to 2X) to complete, since pages must be fetched from the NVMe tier first"；主 agent 一手核验）. https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere/9-1/vsphere-resource-management/memory-tiering-over-nvme/memory-tiering-considerations-and-best-practices.html
-[32] VMware — Understanding Memory Management/Resource Management（白皮书；ballooning 损 3% vs hypervisor swapping 损 34%，归因 "random page selection policy"；2009 年代 FC SAN，仅定性）. https://www.vmware.com/docs/perf-vsphere-memory_management
-[33] Micron 7500 MAX NVMe SSD 延迟规格（4 KB 随机读 70µs typ / 80µs P99；企业盘缺页量子锚）. https://simplyblock.io/glossary/nvme-latency/
-[34] VMware VCF Blog（Dave Morera, 2026-06-18）— Understanding Large Memory Pages with Advanced Memory Tiering（verbatim "ESX intentionally disables host-level large pages when Memory Tiering is configured"；1 GB 页 VM 自动锁 Tier 0）. https://blogs.vmware.com/cloud-foundation/2026/06/18/understanding-large-memory-pages-with-vmware-advanced-memory-tiering/
-[35] TrendForce — Server DRAM Contract Prices Expected to Rise 13-18% QoQ in 3Q26（2026-07-09；合约价方向锚，主 agent verbatim 核验）. https://www.trendforce.com/presscenter/news/20260709-13140.html
-[36] LWN（Jonathan Corbet）— The state of guest_memfd（2025-04-04；verbatim "Private memory cannot (on the host) be mapped into user space, swapped out, or migrated."；主 agent 一手核验此句）. https://lwn.net/Articles/1016133/
-[37] 中国政府采购网 — 宁波市第二医院 VMware 迁建改造及超融合建设项目中标结果公告（2026-09-28；采购人 宁波市第二医院，中标 宁波华力信息系统工程有限公司，¥314.96 万；主 agent keyless WebFetch 核验）. http://www.ccgp.gov.cn/cggg/dfgg/zbgg/202609/t20260928_27406770.htm
-[38] 中国政府采购网 — 2026 年瑞安市人民医院国产化超融合集群采购项目中标结果公告（2026-09-24；采购人 瑞安市人民医院，中标 浙江众成科技有限公司，¥97.5 万；主 agent keyless WebFetch 核验）. http://www.ccgp.gov.cn/cggg/dfgg/zbgg/202609/t20260924_27400998.htm
-[39] openEuler etmem — 内存分级扩展（DRAM+压缩/高性能存储多级、冷数据主动写 swap；天翼云已部署；主 agent 一手核验其定位）. https://gitee.com/openeuler/etmem
-[40] 深信服 Sangfor HCI vs Proxmox 对标页（厂商官方；verbatim "requires IT teams to manually integrate and manage separate servers, storage, and networking"；aSV "using KVM as its core engine"；主 agent 一手核验）. https://www.sangfor.com/cloud-and-infrastructure/competitors/sangfor-vs-proxmox-comparison
-[41] Proxmox VE Pricing（官网；Community €120 / Basic €370 / Standard €550 / Premium €1,100，每占用 CPU 插槽/年、与核数无关；主 agent verbatim 核验）. https://www.proxmox.com/en/products/proxmox-virtual-environment/pricing
+- [1] Broadcom TechDocs — Memory Tiering over NVMe（vSphere 9.1，含 considerations）. https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere/9-1/vsphere-resource-management/memory-tiering-over-nvme.html
+- [2] VMware Cloud Foundation Blog — Memory Tiering Tech Preview（8.0U3，4:1 默认，2024-07-18）. https://blogs.vmware.com/cloud-foundation/2024/07/18/vsphere-memory-tiering-tech-preview-in-vsphere-8-0u3/
+- [3] Lenovo Press — Memory Tiering over NVMe on ESXi 9.0（LP2288，内容需登录）. https://lenovopress.lenovo.com/lp2288
+- [4] Proxmox VE Wiki — Dynamic Memory Management（KSM/ballooning）. https://pve.proxmox.com/wiki/Dynamic_Memory_Management
+- [5] Steve Scargall — Linux Kernel Tiering with CXL Memory（2024-05；个人博客，仅作机制入门）. https://stevescargall.com/blog/2024/05/using-linux-kernel-tiering-with-compute-express-link-cxl-memory/
+- [6] LWN — Weighted interleaving for memory tiering（提案；6.9 合入据 kernelnewbies）. https://lwn.net/Articles/948037/
+- [7] LWN(lore) — DAMON tiered memory management（Honggyu Kim 补丁，"11%→3–5%"为执行时间减速）. https://lwn.net/Articles/978313/
+- [8] 用户提供的**线索**（OSDI 2026 Day1 Track2 Session1 + 背景综述），主 agent 已独立核验：OSDI '26 "Memory Tiering and CXL" track 议程 https://www.usenix.org/conference/osdi26/technical-sessions ——RamRyder/MAC/NEMO/OBASE/MDK **五篇题名与作者全部一手确认**（含中性无提示复抓排除提示污染）；MAC = Lee/Sun/Ji 等，MDK = Patel/Yang/Wang 等.
+- [9] Stanford DAM — Memory Prices. https://dam.stanford.edu/memory-prices.html
+- [10] RAM vs SSD Price Trends（消费级市场数据，波动大，仅数量级参考）. https://rampricehistory.com/blog/ram-vs-ssd-price-trends-2026
+- [11] Jinshu Liu, Hamid Hadian, Hanchen Xu, Daniel S. Berger, Huaicheng Li — Dissecting CXL Memory Performance at Scale（arXiv:2409.14317；CXL 140–410 ns）. https://arxiv.org/abs/2409.14317
+- [12] LWN — Recent work in memory tiering（Corbet，2026-09；pghot、分层感知 memcg；未涉 NVMe/swap）. https://lwn.net/Articles/1092001/
+- [13] The Register — Broadcom 停 VMware 永久授权、停免费 ESXi（2024-02-13；另见 Broadcom KB 309138，替代 2024-01-15 的 KB 96168）. https://www.theregister.com/2024/02/13/broadcom_ends_free_esxi_vsphere/
+- [14] Tom's Hardware — Intel 结束 Optane 业务（2022-07）. https://www.tomshardware.com/news/intel-kills-optane-memory-business-for-good
+- [15] Proxmox — PVE 9.0 发布（2025-08-05，Debian 13，内核 6.14.8-2）. https://www.proxmox.com/en/about/company-details/press-releases/proxmox-virtual-environment-9-0
+- [16] Linux 内核文档（v6.14/v6.17）— DAMON usage / DAMON_RECLAIM / cgroup-v2 `memory.reclaim` / numa demotion（经内核源码核验）. https://docs.kernel.org/admin-guide/mm/damon/
+- [17] Weiner 等 — TMO: Transparent Memory Offloading in Datacenters（ASPLOS'22；PSI 驱动主动 offload 到 swap）. https://dl.acm.org/doi/10.1145/3503222.3507731
+- [18] Yellow-Bricks — vSphere Memory Tiering Considerations and FAQ（2026-07-16；关大页 + 4 KB 逐字坐实；vMotion 处仅定性"更慢"、无倍数，倍数见 [31]；本轮 keyless 重抓正常，"抓取受限"已消除）. https://www.yellow-bricks.com/2026/07/16/memory-tiering-considerations-and-frequently-asked-questions/
+- [19] Proxmox — PVE 9.2 发布（2026-05，内核 7.0）与 Proxmox VE Kernel wiki. https://www.proxmox.com/en/about/company-details/press-releases
+- [20] Equilibria: Fair Multi-Tenant CXL Memory Tiering at Scale（arXiv:2602.08800）. https://arxiv.org/abs/2602.08800
+- [21] Zhong 等 — Managing Memory Tiers with CXL in Virtualized Environments（Memstrata，OSDI '24，Microsoft）. https://www.usenix.org/conference/osdi24
+- [22] Liu, Hadian, Xu 等 — Tiered Memory Management Beyond Hotness（SoarAlto，OSDI '25）. https://www.usenix.org/conference/osdi25/presentation/liu
+- [23]–[25] 见 [reverse-digest.md](reverse-digest.md)（本案例共用编号：QEMU CXL 官方文档、damo README、逆向消化对象仓库清单）.
+- [26] Linux `Documentation/admin-guide/cgroup-v2.rst`，v6.14 与 master 对照（本轮经 GitHub API 一手抓取核对 memory.stat 条目：v6.14 有 zswp*/pgdemote_*，无 pswpin/pswpout/pgpromote/pgmigrate）. https://github.com/torvalds/linux/blob/v6.14/Documentation/admin-guide/cgroup-v2.rst
+- [27] Linux commit `992bf775` — mm/demotion: add support for explicit memory tiers（作者 Aneesh Kumar K.V, IBM；2022-08 作，入 v6.1；经 GitHub API 一手核验）. https://github.com/torvalds/linux/commit/992bf77591cb
+- [28] Zhou, Xu, Seo, Manzanares, Swanson — Break On Through to the Other Side: Pooling Memory Elastically with RamRyder（OSDI '26；摘要 verbatim 容量/带宽利用率 +28.6%/+43.2%；主 agent 一手核验 track 议程）. https://www.usenix.org/conference/osdi26/presentation/zhou-yanbo
+- [29] Li, Giordano, Garg, Kadekodi, Berger, Kasikci, Anderson, Peter — Finding NEMO: Nimble and Expressive Memory Observability（OSDI '26；内存控制器硬件遥测引擎；主 agent 一手核验）. https://www.usenix.org/conference/osdi26/presentation/li-shihang
+- [30] Banakar, Yang, Wu, Arpaci-Dusseau, Arpaci-Dusseau, Keeton — OBASE: Object-Based Address-Space Engineering to Improve Memory Tiering（OSDI '26；hotness fragmentation + 地址空间重排；arXiv:2603.00378）. https://www.usenix.org/conference/osdi26/presentation/banakar
+- [31] Broadcom TechDocs — Memory Tiering Considerations and Best Practices（vSphere 9.1；verbatim "vMotion will take longer (1.5X to 2X) to complete, since pages must be fetched from the NVMe tier first"；主 agent 一手核验）. https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere/9-1/vsphere-resource-management/memory-tiering-over-nvme/memory-tiering-considerations-and-best-practices.html
+- [32] VMware — Understanding Memory Management/Resource Management（白皮书；ballooning 损 3% vs hypervisor swapping 损 34%，归因 "random page selection policy"；2009 年代 FC SAN，仅定性）. https://www.vmware.com/docs/perf-vsphere-memory_management
+- [33] Micron 7500 MAX NVMe SSD 延迟规格（4 KB 随机读 70µs typ / 80µs P99；企业盘缺页量子锚）. https://simplyblock.io/glossary/nvme-latency/
+- [34] VMware VCF Blog（Dave Morera, 2026-06-18）— Understanding Large Memory Pages with Advanced Memory Tiering（verbatim "ESX intentionally disables host-level large pages when Memory Tiering is configured"；1 GB 页 VM 自动锁 Tier 0）. https://blogs.vmware.com/cloud-foundation/2026/06/18/understanding-large-memory-pages-with-vmware-advanced-memory-tiering/
+- [35] TrendForce — Server DRAM Contract Prices Expected to Rise 13-18% QoQ in 3Q26（2026-07-09；合约价方向锚，主 agent verbatim 核验）. https://www.trendforce.com/presscenter/news/20260709-13140.html
+- [36] LWN（Jonathan Corbet）— The state of guest_memfd（2025-04-04；verbatim "Private memory cannot (on the host) be mapped into user space, swapped out, or migrated."；主 agent 一手核验此句）. https://lwn.net/Articles/1016133/
+- [37] 中国政府采购网 — 宁波市第二医院 VMware 迁建改造及超融合建设项目中标结果公告（2026-09-28；采购人 宁波市第二医院，中标 宁波华力信息系统工程有限公司，¥314.96 万；主 agent keyless WebFetch 核验）. http://www.ccgp.gov.cn/cggg/dfgg/zbgg/202609/t20260928_27406770.htm
+- [38] 中国政府采购网 — 2026 年瑞安市人民医院国产化超融合集群采购项目中标结果公告（2026-09-24；采购人 瑞安市人民医院，中标 浙江众成科技有限公司，¥97.5 万；主 agent keyless WebFetch 核验）. http://www.ccgp.gov.cn/cggg/dfgg/zbgg/202609/t20260924_27400998.htm
+- [39] openEuler etmem — 内存分级扩展（DRAM+压缩/高性能存储多级、冷数据主动写 swap；天翼云已部署；主 agent 一手核验其定位）. https://gitee.com/openeuler/etmem
+- [40] 深信服 Sangfor HCI vs Proxmox 对标页（厂商官方；verbatim "requires IT teams to manually integrate and manage separate servers, storage, and networking"；aSV "using KVM as its core engine"；主 agent 一手核验）. https://www.sangfor.com/cloud-and-infrastructure/competitors/sangfor-vs-proxmox-comparison
+- [41] Proxmox VE Pricing（官网；Community €120 / Basic €370 / Standard €550 / Premium €1,100，每占用 CPU 插槽/年、与核数无关；主 agent verbatim 核验）. https://www.proxmox.com/en/products/proxmox-virtual-environment/pricing
 
 ## 修订说明（v4，经两轮 7 路评审）
 
