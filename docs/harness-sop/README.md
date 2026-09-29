@@ -57,7 +57,7 @@ flowchart TD
 |---|---|---|
 | 零 目标与价值假设 | 钉住要兑现的价值、受益者、度量口径 | 本 SOP（价值假设卡） |
 | 一 澄清范围 | 锁定 XXX 边界、YYY/ZZZ 形态、评价维度、客户与招标背景 | `grilling`（可配 `domain-modeling` 落术语/决策） |
-| 二 学术与情报调研 | 汇集 XXX 学术热点、ZZZ 公开情报、YYY 现状，带引用 | `storm-research`（默认无授权 DuckDuckGo）+ 内置 `WebSearch`/`WebFetch` |
+| 二 学术与情报调研 | 汇集 XXX 学术热点、ZZZ 公开情报、YYY 现状，带引用；存在共享开源上游时执行逆向学习子步骤（[reverse-learning-map.md](reverse-learning-map.md)，产出 `reverse-digest.md`） | `storm-research`（默认无授权 DuckDuckGo）+ 内置 `WebSearch`/`WebFetch` + `reverse-skill`（开源形态） |
 | 三 差距分析 | 逐维对比 YYY 与 ZZZ，证据锚定 | `report-authoring`（表格化） |
 | 四 行动路线 | 差距转分期行动，按价值×可行性排序 | 本 SOP + 时间线图 |
 | 五 MVP 架构设计 | 选最高价值切片，出架构图与部署图 | 本 SOP + Mermaid 合规图 |
@@ -87,7 +87,7 @@ graph TD
         C1[STORM 研究引擎（storm-research）<br>run_storm_claude · knowledge_storm]:::capCls
         C2[澄清与建模（grilling · grill-with-docs · domain-modeling）]:::capCls
         C3[成文引擎（report-authoring）]:::capCls
-        C4[逆向情报可选（reverse-skill）]:::capCls
+        C4[逆向学习（reverse-skill）]:::capCls
     end
 
     subgraph GOV[治理规范]
@@ -99,7 +99,7 @@ graph TD
     S0 --> C1
     S0 --> C2
     S0 --> C3
-    S0 -->|可选| C4
+    S0 -->|共享开源上游时必做| C4
     S0 --> G1
     S0 --> G2
     S0 --> G3
@@ -121,7 +121,7 @@ graph TD
 | 阶段七 · 成文 | `report-authoring` + `docs/authoring/report-style-guide.md` |
 | 全程检索 | `docs/extensions/no-auth-external-retrieval.md`（无授权） |
 | 全程事实把关 | 防幻觉与核验（`docs/authoring/` + 根 `CLAUDE.md`） |
-| 可选技术剖析 | `vendor/reverse-skill`（仅授权、仅公开信息或己方/开源目标） |
+| 阶段二 · 逆向学习（存在共享开源上游时为正式子步骤） | `vendor/reverse-skill`（开源形态）+ [reverse-learning-map.md](reverse-learning-map.md)，产出案例级 `reverse-digest.md` 机制底座；闭源目标仅授权、仅公开信息 |
 
 ## 输入三要素与最终产出
 
