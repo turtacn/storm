@@ -37,5 +37,7 @@ machine; do not fetch from unpinned external archives. Prefer tools already pres
 渗透、CTF、安全分析等任务结束时产出正式报告——除遵循自身模板外，其产出**还必须**符合
 本仓库的写作标准：`docs/authoring/report-style-guide.md` 及其 Mermaid 附录
 `docs/authoring/mermaid-style-guide.md`。要点：章节大纲先行、结论置后、关键对比用表格、
-`[n]` 数字引注加文末"参考资料"、图表一律 Mermaid（全角括号、`<br>` 换行、`%%` 注释独占
-一行、图例置顶配色），并完成防幻觉自检。
+`[n]` 数字引注加文末"参考资料"、**引用自闭环**（`[n]` 引注与跨文档链接处须就地写出被引来源的
+关键事实与结论，读者不跳转即可完整理解，跳转仅供核验；不为此刻意限制篇幅——尤其逆向/渗透
+报告里的证据、命令、CVE 结论须就地讲清，不能只丢一个跳转）、图表一律 Mermaid（全角括号、
+`<br>` 换行、`%%` 注释独占一行、图例置顶配色），并完成防幻觉自检。

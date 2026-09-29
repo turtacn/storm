@@ -22,7 +22,11 @@ with the pack's own first-run script (below).
 
 Upstream files are **not modified**. The only repo-local additions in this tree are:
 - `VENDORED-INTO-STORM.md` (this file)
-- `LOCAL-OVERRIDES.md` (repo-local policy that takes precedence — see it)
+- `LOCAL-OVERRIDES.md` — repo-local policy that takes precedence over upstream defaults
+  (it only adds constraints, never loosens `RULES.md`): (1) all external retrieval must be
+  no-authorization — no API keys/tokens, prefer built-in `WebSearch`/`WebFetch` or keyless
+  DuckDuckGo/SearXNG; (2) on-demand tool bootstrap stays local and pinned; (3) any generated
+  "report for people to read" must additionally follow this repo's writing standard.
 
 ## Inert CI
 

@@ -148,3 +148,12 @@ SOP 核心组 5、扩展与技能组 12——vendored 内容除外），逐处�
 的骨架/映射指针补就地概括；1 处表格单元格压缩按规则的紧凑豁免保留。多份文档（CONTEXT、三份
 ADR、authoring/extensions 全部）被判整体合规，report-outline §四与价值模型必过门的写法被审计员
 引为样板。
+
+**第二轮·闭合全部剩余范围**：核过全仓 27 份"己方新增"文档（用 `git log --diff-filter=A` 逐一区分
+上游 STORM 2024 原生文件——README/CONTRIBUTING/各 example README 均属之、按零改动原则不动——与本分支
+新增文件），补齐前三路审计未覆盖的 3 份 vendored 树内"己方注记"：`.claude/skills/VENDOR-NOTICE.md`
+（纯溯源+许可，已自闭环）、`vendor/reverse-skill/VENDORED-INTO-STORM.md`（把 LOCAL-OVERRIDES 的裸
+指针改为就地列出三条 override）、`LOCAL-OVERRIDES.md`（Override 3 补入"引用自闭环"要点，使经 vendored
+`docs-generator` 产出的逆向/渗透报告也继承该规则）。另全仓 grep "见/详见/方法见 X" 全部命中逐条复核：
+除同文档前向指针、citation-plumbing（每个 `[n]` 已就地点明主题、仅 URL 后置）外无裸跳转；顺带把
+benchmark-plan 的 setup-tiers 脚本指针补上 DRY-RUN 安全模型（改系统状态前须知，与 report 一致）。

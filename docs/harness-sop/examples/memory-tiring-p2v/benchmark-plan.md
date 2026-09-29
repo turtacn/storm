@@ -57,7 +57,8 @@
 | D2 CXL · DAMON 迁移 | CXL 作 NUMA 层 + DAMON(paddr) `migrate_hot/cold` | `daxctl reconfigure-device --force --mode=system-ram all` + `auto_online_blocks=online_movable`；`demotion_enabled=false`、`numa_balancing=0`（隔离 DAMON）[5][16] |
 | E ESXi 头对头 | 同硬件 ESXi 9 分层 1:1 | 外部对照，验证"超越/对等"，非可选 [1] |
 
-具体启用命令见 [`scripts/setup-tiers.sh`](scripts/setup-tiers.sh)。
+具体启用命令见 [`scripts/setup-tiers.sh`](scripts/setup-tiers.sh)（改系统状态，默认 DRY-RUN 只打印
+将执行的动作，须显式 `MTP_CONFIRM=1` 才真正执行；`nvme-swap` 的目标分区会被 `mkswap` 格式化）。
 
 ## 负载
 
