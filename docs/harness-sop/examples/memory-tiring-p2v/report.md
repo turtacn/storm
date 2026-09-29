@@ -1,8 +1,9 @@
 # 内存分层方向 · Proxmox VE 如何超越 VMware vSphere —— 对标分析与业务/技术规划
 
 > 由 `competitive-analysis` SOP 生成，遵循 `docs/authoring/` 标准。检索用**免密钥（keyless）**方式。
-> 事实性内容 `[n]` 引注；估算显式标注；无法核验写"无法确定"。学术热点一节基于**用户提供、未独立
-> 核验**的材料 [8]。
+> 事实性内容 `[n]` 引注；估算显式标注；不留悬留存疑——每条经核验后落到"事实 / 预测+门 / 确定的
+> 不可得判定+处理"三种闭环形态之一（见文末"结论校准与验证闭环"表）。学术热点一节的 OSDI '26 材料
+> **已由主 agent 抓 USENIX 官方议程一手确认**（升级自用户线索 [8]）。
 >
 > **本版 v4：经两轮共 7 路 reviewer 对抗式评审（第二轮全部用与主 agent 一致的 Claude Fable 5，含一路
 > 对 v6.14 内核源码逐条核验）后重写。v4 纠正了 v3 的一处方向性错误**——见文末"修订说明"。
@@ -30,7 +31,7 @@
 - MVP 价值兑现
 - 对比测试设计（含与 ESXi 头对头）
 - 结论与投资建议
-- 参考资料 / 修订说明 / 存疑与需确认
+- 参考资料 / 修订说明 / 结论校准与验证闭环（无悬留存疑）
 
 ## 零、目标、意图与价值假设
 
@@ -157,9 +158,13 @@ Environments（Memstrata，OSDI '24，微软）**[21] 表明 **CXL 分层在虚�
    补齐**，无须重造引擎。
 2. **结构性护城河（VMware 难以复制的只有这两条）**：**开源/AGPL**（可审计、可 fork、无锁定）与
    **无按核授权 TCO**。其余（CXL、自调优）VMware 可跟随。
-3. **CXL 是时机领先，不是结构性超越**：VMware 目前仅本地 NVMe（截至 2026-09 [12][18]），但其 Tier0/
-   Tier1 架构可纳入 CXL（trade press 已列 CXL 为候选 [18]）；且 CXL 扩展器 $/GB ≥ DIMM，DRAM 涨价同样
-   抬高它——故 CXL **不接** "why-now" 的成本论。CXL 作为期权，随内核（6.16/6.17/7.0）成熟推进。
+3. **CXL 是时机领先，不是结构性超越，且 VMware 侧近期已降温**：截至 2026-09，VMware/Broadcom **未把
+   CXL 纳入 Memory Tiering**——vSphere 9.0/9.1 全部一手产品文档 CXL 命中为 0（主 agent 亲验 9.1 Memory
+   Tiering 页仅定义 Tier 1 = NVMe [1]），唯一可核实的一手 CXL×ESXi 表态是 VMware Explore 2024 的
+   **Project Peaberry"CXL 加速器"前瞻演示、带无交付义务免责**（据对拍 reviewer，单一来源、主 agent
+   未再核）。即 **Proxmox 与 VMware 在 CXL 上同处"未 GA"起跑线**，VMware 甚至两年未重申——这比"trade
+   press 列候选"是**更强的反 why-now 证据**。且 CXL 扩展器 $/GB ≥ DIMM，DRAM 涨价同样抬高它——故 CXL
+   **不接** "why-now" 的成本论。CXL 作为期权，随内核（6.16/6.17/7.0）成熟推进。
 
 **why-now（只对 NVMe/现有通路成立）**：Broadcom 2024-01 停永久授权、转订阅、一度停免费 ESXi → 迁移潮
 [13]；2025–2026 DRAM 涨价使 swap 分层 ROI 高 [9][10]。对手（抢同一批难民）：Nutanix、OpenShift
@@ -289,11 +294,32 @@ graph LR
 | 公共部门/信创（限定）| 自主可控、capex 受限 | 开源可审计 + 无锁定 | 第二（须限定）|
 | 边缘 | 小节点多装载 | NVMe-swap 密度 | 第三 |
 
-**信创限定（v4 明确）**：信创多要国产 CPU（鲲鹏/飞腾 ARM、龙芯、海光/兆芯）+ 国产 OS（麒麟/统信，
-内核 5.10/6.6）→ "内核 6.14+ 分层"链条**不转移**；国产 CPU 多无 CXL；机密计算（SEV-SNP/TDX）VM 不能被
-host swap/迁移。故信创现实可及的仅"x86 信创（海光/兆芯）、无 CXL、非 CoCo"子集，且要过 Proxmox 是否
-进信创目录这关。定价：核心 AGPLv3，企业订阅=源码+支持+SLA（**分层 GUI/策略须在 AGPL 核心，否则与
-"不得按核解锁"控标条款自相矛盾**）。
+**信创限定与 YYY 双形态（v4.5 明确）**：本方 YYY = 最新版 Proxmox VE，可泛化为**国内基于 Linux/KVM
+的衍生/同类 HCI**（深信服 aSV / Sangfor HCI、SmartX SMTX OS/ELF 等——它们与 PVE **同承 Linux/KVM 上游**，
+故本报告的内核分层机制分析对它们同等适用；证据级：KVM 基座属业界共识，具体入围/认证条目主 agent 本轮
+未能独立核验，见"结论校准与验证闭环"表）。据此信创分两形态：
+- **形态 A（Proxmox VE 直接入目录）**：Proxmox 为奥地利厂商（Proxmox Server Solutions GmbH），直接进
+  中国信创/央采目录**现实可及性低**（目录重"国产厂商主体/自主可控"）——现实路径是国内厂商基于其
+  AGPL 源码的二次发行，而非 Proxmox 原厂。
+- **形态 B（国产 KVM HCI）**：深信服/SmartX 等**本就在国产化生态经营**，主体资格不是问题。但**分层特性
+  仍受内核代次卡住**：信创 OS（麒麟、统信 UOS）内核多停留在 5.x/6.6 一线（据对拍 reverse 轴：麒麟 V11≈
+  6.6、UOS V20≈4.19，主 agent 未逐一再核），**滞后于分层所需的 6.14+**；国产 CPU（鲲鹏/飞腾/龙芯）
+  多无公开 CXL 支持。故"内核 6.14+ 分层"这条链在信创现实可及的仅**"x86 信创（海光/兆芯）+ 可上 6.14+
+  内核 + 无 CXL + 非 CoCo"**子集。
+
+**CoCo 边界（v4.5 纠正因果）**：机密计算（SEV-SNP/TDX）VM 的**私有内存在现行 Linux 下不能被 host 动态
+分层（swap/迁移）**——但这是**实现缺口、非加密的架构禁止**：AMD（`SNP_PAGE_MOVE`/`SNP_PAGE_SWAP_OUT`）
+与 Intel（`TDH.MEM.PAGE.RELOCATE`）的固件 ABI 都已具备 relocate/swap 私有页的能力，Linux 未接；且
+`guest_memfd` 的"不可换出/不可迁移"限制**对非机密 guest 同样成立**，可见加密非主因（LWN "The state of
+guest_memfd" verbatim："Private memory cannot (on the host) be mapped into user space, swapped out, or
+migrated." [36]；ABI 细节据对拍一手核验、主 agent 未逐条再核）。**例外**：CoCo VM 的**共享页可正常分层**，
+私有页的**静态 NUMA 放置今已可用**。对本案例的净含义不变：面向 CoCo 卖点应是"共享页分层 + 静态放置"，
+不承诺私有页动态分层。
+
+定价：核心 AGPLv3，企业订阅=源码+支持+SLA（**分层 GUI/策略须在 AGPL 核心，否则与"不得按核解锁"控标
+条款自相矛盾**）。价格结构性差异是护城河的耐久驱动——Proxmox **按 CPU 插槽定额订阅 + 可选**对 VMware
+VCF **按核强制订阅**；**精确比值公开不可得**（Broadcom 2024 后实价多在 NDA），故报告以"结构性不对称"
+而非某个倍数支撑 TCO 论点（见闭环表 4c）。
 
 ## 八、MVP 价值兑现
 
@@ -311,7 +337,7 @@ host swap/迁移。故信创现实可及的仅"x86 信创（海光/兆芯）、�
 说清：NVMe 走智能 swap，尾延迟不如 DRAM 常驻，适合冷数据多的负载；真正拉开身位的是开源无锁定与
 按 VM 的产品化，而非某个独家引擎。"*
 
-### 控标条款（真实案例：无法确定，不杜撰；条款为建议表述）
+### 控标条款（真实案例按闭环表 form ③：不杜撰、给条款语言 + 提升路径；条款为建议表述）
 
 内核原生可审计 / 按 VM 策略与观测 / CXL-ready 介质开放 / **不得按主机或按核订阅解锁分层** /
 自主可控·供应链。异议应答：无 GUI→正是 MVP；无成熟度→设计伙伴 benchmark + 公布；无担责厂商→
@@ -423,6 +449,7 @@ Proxmox**：host 级 swap 不透明 guest RAM 结构性暴露于**双重分页**
 [33] Micron 7500 MAX NVMe SSD 延迟规格（4 KB 随机读 70µs typ / 80µs P99；企业盘缺页量子锚）. https://simplyblock.io/glossary/nvme-latency/
 [34] VMware VCF Blog（Dave Morera, 2026-06-18）— Understanding Large Memory Pages with Advanced Memory Tiering（verbatim "ESX intentionally disables host-level large pages when Memory Tiering is configured"；1 GB 页 VM 自动锁 Tier 0）. https://blogs.vmware.com/cloud-foundation/2026/06/18/understanding-large-memory-pages-with-vmware-advanced-memory-tiering/
 [35] TrendForce — Server DRAM Contract Prices Expected to Rise 13-18% QoQ in 3Q26（2026-07-09；合约价方向锚，主 agent verbatim 核验）. https://www.trendforce.com/presscenter/news/20260709-13140.html
+[36] LWN（Jonathan Corbet）— The state of guest_memfd（2025-04-04；verbatim "Private memory cannot (on the host) be mapped into user space, swapped out, or migrated."；主 agent 一手核验此句）. https://lwn.net/Articles/1016133/
 
 ## 修订说明（v4，经两轮 7 路评审）
 
@@ -451,12 +478,41 @@ Proxmox**：host 级 swap 不透明 guest RAM 结构性暴露于**双重分页**
   `pgpromote/pgdemote`）；⑤ 大页、热迁移换入、勿 bind 三处机制主张补函数锚点入 reverse-digest；
   ⑥ "阅读式"分级在正文显性化（OBASE 底座、Proxmox 集成点）；⑦ 修复 digest→report 悬空引用；
   ⑧ NUMA 通路"访问不缺页"细化为"无主缺页/无 I/O（hint fault 为轻量采样缺页）"。
+- **v4.5（结论闭环：消灭悬留存疑）**：按"结论闭环"规则 + 用户"不留存疑"指令，启动五路资深 reviewer
+  （Opus，配置同主 agent）并行对拍，把原"存疑与需确认"逐条推进到闭环（见文末表）。要点：① OSDI '26
+  五篇含 **NEMO/OBASE 升为一手确认**（USENIX 议程主 agent 复抓，"命名未确认"作废）；② 头对头 P99
+  **删除循环的 ±15% 区间**（reviewer 自查发现其从门倒抄）、改为悬崖结构 + 可证伪门 p<约 1%/k + 双指标；
+  ③ 产品化拆 **M1a（功能）/M1b（达标）** + 五卡点；④ vMotion/大页改挂 Broadcom/VCF 第一方源；⑤ 介质
+  降幅改方向性 + TrendForce 合约价锚；⑥ CXL 由"trade press 候选"改为**一手负证**（VMware 9.0/9.1 文档 0
+  CXL、未 GA、降温）；⑦ **CoCo 因果纠正**——私有内存不能 host 分层是**实现缺口非加密架构禁止**（LWN
+  guest_memfd 一手 [36]），共享页可分层；⑧ 信创改 **YYY 双形态**（Proxmox 原厂 vs 国产 KVM HCI 深信服/
+  SmartX）；⑨ 价格改**结构性不对称**（精确比值 Broadcom NDA 不可得）。主 agent 对一手结论**再核验**并
+  **否决 reviewer 两条误报**（代次表、[1] 归属——报告原本正确）。控标真实案例因本会话 WebSearch 预算
+  耗尽，以 form ③（不杜撰 + 条款语言 + 提升路径）闭环。
 
-## 存疑与需确认
+## 结论校准与验证闭环（无悬留存疑）
 
-- 产品化差距是否如判断般"能贴内核快速补齐"，需在 PVE 9.2 上实做 DAMOS paddr+memcg 按 VM 策略验证。
-- 与 ESXi 头对头（config E）尾延迟/密度对比：**无法确定**，待实测——这是"超越"最硬的待验证项。
-- CXL：KVM guest 上 TPP/DAMON 的开销与精度、国产/主流 CPU 的 CXL 可得性、VMware 的 CXL 路线，均待证。
-- 信创目录资格、CoCo 边界、企业级价格比值、非介质 TCO：部分**无法确定**。
-- [8] 已按线索独立核验：OSDI '26 与 RamRyder/MAC/MDK 可查，**NEMO/OBASE 命名未确认**（概念可溯 [22]）；
-  [9][10] 消费级；[18] keyless 抓取受限。
+按"结论闭环"规则，原"存疑与需确认"的每一条都已推进到三种可闭环形态之一——**① 已核验事实 / ② 有依据
+的工程判断 + 可证伪门 / ③ 确定的"公开不可得"判定 + 处理**——不留任何裸露的"无法确定/待实测/待证"。
+达成手段：五路资深 reviewer（Opus，配置同主 agent）并行对拍，主 agent 对一手结论**再核验**后采纳，并
+如实标注证据级（含"据对拍、主 agent 未逐条再核"）。
+
+| 原存疑项 | 闭环形态 | 结论（就地写全）| 证据级 |
+|---|---|---|---|
+| 产品化差距能否"贴内核快速补齐" | ② 判断+门 | **能，但拆 M1a（功能，约 2 月，基元 6.14 全就绪）/ M1b（达标，调参预算另计）**；五卡点最硬为 memcg 过滤器 VM 重启后静默失效；门见 §六，第 0 天先核 PVE 是否编入 `CONFIG_DAMON_*` | 一手内核文档（6.14 基元）+ 推断（卡点，极易实测）|
+| 与 ESXi 头对头 P99/密度 | ② 判断+门 | **同量级、同悬崖结构**（缺页量子 20–80µs 相同）；删除循环的 ±15%，门=「99 分位请求缺页概率 p<约 1%/k」+ 双指标 gap-vs-E/inflation-vs-A；分水岭是选页质量非介质 | 机制等价（reverse-digest 源码）+ VMware 白皮书一手 [32] + Micron 一手 [33]；**无实测环境（用户 2026-09 确认）**，故为预测 |
+| CXL·KVM guest 上 TPP/DAMON 开销精度 | ② 判断+门 | **非空白**：虚拟化/KVM 环境 CXL 分层已有系统研究（Memstrata OSDI'24 [21]、Equilibria [20]），开销可接受；仍非 Proxmox+DAMON 直接实测 → M3 CXL 门验证 | 论文一手 [20][21] + 据对拍 |
+| CXL·国产/主流 CPU 可得性 | ①+③ | Intel（SPR/EMR/GNR）、AMD（Genoa/Turin）支持 CXL；**国产 CPU（鲲鹏/飞腾/龙芯）多无公开 CXL 支持**——加强"信创 + CXL 不可兼得" | 公开（Intel/AMD）+ 推断（国产：无公开支持=负证）|
+| CXL·VMware 路线 | ③→负证 | **未 GA、近期降温**：9.0/9.1 一手文档 CXL 命中 0（主 agent 亲验）、Tier 1 一手仅定义为 NVMe；唯一一手表态是 Explore 2024 Peaberry 前瞻演示（带免责）——加强"CXL 作期权" | 主 agent 亲验（负证）+ 据对拍（Peaberry，单源未再核）|
+| 信创目录资格（YYY 双形态）| ② 判断 | **形态 A（Proxmox 原厂入目录）可及性低**；**形态 B（国产 KVM HCI：深信服/SmartX）可正常经营**，但分层特性受信创 OS 内核代次（麒麟≈6.6/UOS≈4.19，滞后 6.14+）与国产 CPU 无 CXL 卡住 | 业界共识（KVM 基座）+ 据对拍（内核版本）+ **入围/认证具体条目主 agent 未独立核验** |
+| CoCo 边界 | ① 事实（纠正因果）| CoCo 私有内存在现行 Linux **不能被 host 动态分层**，但系**实现缺口非加密架构禁止**（厂商固件 ABI 已具备、Linux 未接；`guest_memfd` 限制对非机密 guest 同样成立）；**共享页可分层、静态 NUMA 放置今可用** | LWN guest_memfd 一手 verbatim [36]（主 agent 核验）+ ABI 据对拍一手（主 agent 未逐条再核）|
+| 企业级价格比值 | ③ 判定+处理 | **精确比值公开不可得**（Broadcom 2024 后实价多在 NDA）；耐久驱动是**结构性不对称**——按插槽定额+可选 对 按核强制订阅，报告以此支撑 TCO 论点而非某倍数 | 结构性事实（公开授权模型）+ 精确价"不可得"判定 |
+| 非介质 TCO | ② 判断 | 净方向**仍为正**（Meta TMO 机群生产验证 swap 分层可行 [17]），但须从"介质单价降幅"扣除 NVMe 写放大/DWPD 磨损、回收/换页 CPU、功耗——故报告降幅表述为"数量级/方向性"而非定值 | TMO 一手 [17] + 推断（扣减项）|
+| OSDI '26 命名（NEMO/OBASE 等）| ① 事实 | 五篇题名/作者**全部一手确认** [8][28][29][30]；NEMO/OBASE"未确认"结论作废；RamRyder +28.6/+43.2% 升为论文一手 | USENIX 议程一手（主 agent 复抓）|
+| [9][10] 价格数据 | ① 事实（限定）| 消费级零售口径、高波动，仅支撑数量级/方向；补服务器 DRAM **合约价**权威锚 TrendForce [35] | 主 agent 核验来源性质 |
+| [18] 抓取受限 | ① 事实 | keyless 重抓**已正常**；vMotion 1.5–2× 改挂 Broadcom best-practices 一手 [31]、大页挂 VMware VCF 官博 [34] | 主 agent 亲验 |
+| 控标真实案例 | ③ 判定+处理 | **不杜撰案例**；招标差异化**条款语言已给**（§八：内核可审计/按 VM 策略/不得按核解锁分层/自主可控）。真实案例发现受阻于**本会话 WebSearch 预算耗尽**——提升路径：提高检索额度或由用户提供云头条/中国政府采购网具体公告 URL（主 agent 可 WebFetch 核验后补入）| 确定的"本会话不可得"判定 + 条款语言产出 |
+
+> **与 grilling 纪律的关系**：以上不是"停在问题上"，而是"带着问题去核实到闭环"。仍标"据对拍、主 agent
+> 未逐条再核"者，是**证据级的诚实标注**（form ② 允许），非悬留问题——其结论已可支撑决策；用户在场时
+> 可用真实环境实测（尤其 config E 头对头）与真实招标素材把相应行从"预测/判定"升级为"实证"。
