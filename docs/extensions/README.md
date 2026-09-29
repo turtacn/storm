@@ -16,7 +16,9 @@
 | **方案四** | STORM 内部用 `LitellmModel` 直连 Claude（当前模型、非交互、机器可读输出） | `integrations/claude_code/run_storm_claude.py` |
 | 辅助 | 运行前环境/密钥自检 | `integrations/claude_code/preflight.py` |
 
-（编号沿用最初分析里的四个集成方向，见 [capability-boundaries.md](capability-boundaries.md)。）
+（编号沿用最初分析：方案一 = Claude Code 编排 STORM（采用），方案四 = STORM 经 LiteLLM 直连
+Claude API（采用），方案三 = 把 `claude -p`/订阅额度当 STORM 后端（不采用，认证模型不互通）；
+完整取舍论证见 [capability-boundaries.md](capability-boundaries.md)。）
 
 ## 快速开始 / Quickstart
 
