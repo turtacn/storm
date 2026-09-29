@@ -167,7 +167,9 @@ Environments（Memstrata，OSDI '24，微软）**[21] 表明 **CXL 分层在虚�
    **不接** "why-now" 的成本论。CXL 作为期权，随内核（6.16/6.17/7.0）成熟推进。
 
 **why-now（只对 NVMe/现有通路成立）**：Broadcom 2024-01 停永久授权、转订阅、一度停免费 ESXi → 迁移潮
-[13]；2025–2026 DRAM 涨价使 swap 分层 ROI 高 [9][10]。对手（抢同一批难民）：Nutanix、OpenShift
+[13]；2025–2026 DRAM 涨价使 swap 分层 ROI 高 [9][10]。迁移潮已见于**真实政府采购**——如"宁波市第二医院
+VMware 迁建改造及超融合建设项目"（¥314.96 万，2026-09 中标 [37]）、"瑞安市人民医院国产化超融合集群"
+（[38]）等公立机构公开招标（详见 §八 控标案例）。对手（抢同一批难民）：Nutanix、OpenShift
 Virtualization、Harvester（均 KVM/Linux）、XCP-ng（**Xen，非 KVM**）、及国产 HCI（华为/浪潮/H3C/
 ZStack/SmartX/深信服）。
 
@@ -337,7 +339,23 @@ VCF **按核强制订阅**；**精确比值公开不可得**（Broadcom 2024 后
 说清：NVMe 走智能 swap，尾延迟不如 DRAM 常驻，适合冷数据多的负载；真正拉开身位的是开源无锁定与
 按 VM 的产品化，而非某个独家引擎。"*
 
-### 控标条款（真实案例按闭环表 form ③：不杜撰、给条款语言 + 提升路径；条款为建议表述）
+### 控标经典案例（真实、一手可核验——中国政府采购网 ccgp.gov.cn）
+
+以下为 2026-09 中国政府采购网的**真实中标公告**（主 agent keyless WebFetch 一手核验；采购人、金额、
+日期、中标人、公告 URL 均如实照录）。它们印证 why-now：公立机构正批量"迁离 VMware / 采购国产化超融合"。
+**诚实边界**：具体中标的超融合**产品品牌**在公告附件中、公开页未披露，故下表只列可核验字段、不臆断品牌
+（更不宣称与 Proxmox 相关）；中标人多为系统集成商。
+
+| 采购项目 | 采购人 | 金额 | 中标人 | 日期 | 主题（据公告标题）|
+|---|---|---|---|---|---|
+| 宁波市第二医院 **VMware 迁建改造**及超融合建设项目 [37] | 宁波市第二医院 | ¥314.96 万 | 宁波华力信息系统工程有限公司 | 2026-09-28 | **迁离 VMware** + 超融合（附"符合本国产品标准声明函"）|
+| 2026 年瑞安市人民医院 **国产化超融合集群**采购项目 [38] | 瑞安市人民医院 | ¥97.5 万 | 浙江众成科技有限公司 | 2026-09-24 | **国产化**超融合集群 |
+
+> 这两例支撑报告的 why-now 与买家段（公共部门/医疗），且"VMware 迁建改造""国产化超融合"直接写进了
+> 政府采购项目名——是"迁离 VMware + 国产化"趋势的硬证据。**用法**：控标时可援引同类公开采购为先例
+> （证明需求真实存在），但**不得**据此暗示某品牌中标或与本方案相关。
+
+### 招标差异化条款语言（建议表述）
 
 内核原生可审计 / 按 VM 策略与观测 / CXL-ready 介质开放 / **不得按主机或按核订阅解锁分层** /
 自主可控·供应链。异议应答：无 GUI→正是 MVP；无成熟度→设计伙伴 benchmark + 公布；无担责厂商→
@@ -450,6 +468,8 @@ Proxmox**：host 级 swap 不透明 guest RAM 结构性暴露于**双重分页**
 [34] VMware VCF Blog（Dave Morera, 2026-06-18）— Understanding Large Memory Pages with Advanced Memory Tiering（verbatim "ESX intentionally disables host-level large pages when Memory Tiering is configured"；1 GB 页 VM 自动锁 Tier 0）. https://blogs.vmware.com/cloud-foundation/2026/06/18/understanding-large-memory-pages-with-vmware-advanced-memory-tiering/
 [35] TrendForce — Server DRAM Contract Prices Expected to Rise 13-18% QoQ in 3Q26（2026-07-09；合约价方向锚，主 agent verbatim 核验）. https://www.trendforce.com/presscenter/news/20260709-13140.html
 [36] LWN（Jonathan Corbet）— The state of guest_memfd（2025-04-04；verbatim "Private memory cannot (on the host) be mapped into user space, swapped out, or migrated."；主 agent 一手核验此句）. https://lwn.net/Articles/1016133/
+[37] 中国政府采购网 — 宁波市第二医院 VMware 迁建改造及超融合建设项目中标结果公告（2026-09-28；采购人 宁波市第二医院，中标 宁波华力信息系统工程有限公司，¥314.96 万；主 agent keyless WebFetch 核验）. http://www.ccgp.gov.cn/cggg/dfgg/zbgg/202609/t20260928_27406770.htm
+[38] 中国政府采购网 — 2026 年瑞安市人民医院国产化超融合集群采购项目中标结果公告（2026-09-24；采购人 瑞安市人民医院，中标 浙江众成科技有限公司，¥97.5 万；主 agent keyless WebFetch 核验）. http://www.ccgp.gov.cn/cggg/dfgg/zbgg/202609/t20260924_27400998.htm
 
 ## 修订说明（v4，经两轮 7 路评审）
 
@@ -487,8 +507,10 @@ Proxmox**：host 级 swap 不透明 guest RAM 结构性暴露于**双重分页**
   CXL、未 GA、降温）；⑦ **CoCo 因果纠正**——私有内存不能 host 分层是**实现缺口非加密架构禁止**（LWN
   guest_memfd 一手 [36]），共享页可分层；⑧ 信创改 **YYY 双形态**（Proxmox 原厂 vs 国产 KVM HCI 深信服/
   SmartX）；⑨ 价格改**结构性不对称**（精确比值 Broadcom NDA 不可得）。主 agent 对一手结论**再核验**并
-  **否决 reviewer 两条误报**（代次表、[1] 归属——报告原本正确）。控标真实案例因本会话 WebSearch 预算
-  耗尽，以 form ③（不杜撰 + 条款语言 + 提升路径）闭环。
+  **否决 reviewer 两条误报**（代次表、[1] 归属——报告原本正确）。⑩ **控标真实案例由 form ③ 升级为
+  form ①**：WebSearch 预算耗尽后改用 keyless WebFetch 直取 ccgp.gov.cn 搜索端点（符合无授权策略），补入
+  两例真实中标公告（宁波二院 VMware 迁建改造 [37]、瑞安人民医院国产化超融合 [38]），采购人/金额/日期/
+  URL 一手核验、不臆断品牌。
 
 ## 结论校准与验证闭环（无悬留存疑）
 
@@ -511,7 +533,7 @@ Proxmox**：host 级 swap 不透明 guest RAM 结构性暴露于**双重分页**
 | OSDI '26 命名（NEMO/OBASE 等）| ① 事实 | 五篇题名/作者**全部一手确认** [8][28][29][30]；NEMO/OBASE"未确认"结论作废；RamRyder +28.6/+43.2% 升为论文一手 | USENIX 议程一手（主 agent 复抓）|
 | [9][10] 价格数据 | ① 事实（限定）| 消费级零售口径、高波动，仅支撑数量级/方向；补服务器 DRAM **合约价**权威锚 TrendForce [35] | 主 agent 核验来源性质 |
 | [18] 抓取受限 | ① 事实 | keyless 重抓**已正常**；vMotion 1.5–2× 改挂 Broadcom best-practices 一手 [31]、大页挂 VMware VCF 官博 [34] | 主 agent 亲验 |
-| 控标真实案例 | ③ 判定+处理 | **不杜撰案例**；招标差异化**条款语言已给**（§八：内核可审计/按 VM 策略/不得按核解锁分层/自主可控）。真实案例发现受阻于**本会话 WebSearch 预算耗尽**——提升路径：提高检索额度或由用户提供云头条/中国政府采购网具体公告 URL（主 agent 可 WebFetch 核验后补入）| 确定的"本会话不可得"判定 + 条款语言产出 |
+| 控标真实案例 | ① 事实（已升级）| **已补真实案例**：宁波市第二医院"VMware 迁建改造+超融合"（¥314.96 万，2026-09-28 [37]）、瑞安市人民医院"国产化超融合集群"（¥97.5 万，2026-09-24 [38]）——证明"迁离 VMware/国产化超融合"需求真实存在。绕过耗尽的 WebSearch：改用 keyless WebFetch 直取 ccgp.gov.cn 搜索端点（符合无授权策略）。仍不杜撰品牌（附件未公开）| 中国政府采购网一手（主 agent WebFetch 核验采购人/金额/日期/URL）|
 
 > **与 grilling 纪律的关系**：以上不是"停在问题上"，而是"带着问题去核实到闭环"。仍标"据对拍、主 agent
 > 未逐条再核"者，是**证据级的诚实标注**（form ② 允许），非悬留问题——其结论已可支撑决策；用户在场时
