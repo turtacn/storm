@@ -6,6 +6,10 @@
 >
 > **本版 v4：经两轮共 7 路 reviewer 对抗式评审（第二轮全部用与主 agent 一致的 Claude Fable 5，含一路
 > 对 v6.14 内核源码逐条核验）后重写。v4 纠正了 v3 的一处方向性错误**——见文末"修订说明"。
+> **v4.3–v4.4：按升级后 SOP 的"机制底座（逆向消化）"必过门，机制性判断统一挂接到
+> [reverse-digest.md](reverse-digest.md)（术语贴回函数 + 论文增量表，证据分级标注）；随后经一路
+> Fable-5 机制底座对拍（判 FAIL、9 条必修）返修——含一处作者归属改正与计数器按 VM 口径的
+> 分版本重述，均经一手再核验。**
 
 ## 章节大纲
 
@@ -47,8 +51,13 @@
 - **NVMe 慢层 = swap 通路**：NVMe 是块设备，`daxctl` 不适用；但 Linux 早已能**主动**把访问-冷页逐到
   swap——`DAMON_RECLAIM`（内核 5.16）、`DAMOS pageout`（paddr，可按 memcg 过滤到 `qemu.slice/<vmid>.
   scope`）、cgroup v2 `memory.reclaim` [16]。慢层页被换出后，访问需**主缺页 + µs 级 I/O**。
-- **CXL/PMem 慢层 = NUMA 通路**：慢层是内存 NUMA 节点，页**保持映射/字节可寻址**，访问不缺页；由
+- **CXL/PMem 慢层 = NUMA 通路**：慢层是内存 NUMA 节点，页**保持映射/字节可寻址**，访问**不产生
+  主缺页、无 I/O**（提升依赖的 hint fault 是采样性的轻量缺页，代价与 swap 主缺页不同量级）；由
   TPP 降级/提升、DAMON 迁移（paddr）管理 [5][16]。
+
+> **机制底座**：以上两通路的函数级依据见 [reverse-digest.md](reverse-digest.md)——同一次回收扫描里
+> 由 `can_demote()` 分岔：降级 = `demote_folio_list`→`migrate_pages()`（页保持映射），换出 = `pageout`
+> 解除映射写 swap；冷/热判定三套并行（DAMON `nr_accesses` 与 LRU 老化判冷、hint fault 选热页）。
 
 VMware 的 Memory Tiering over NVMe 也是"按 recency+frequency 在 4 KB 粒度分类、访问时 page-in" [1]——
 **与 DAMON(paddr)+DAMOS pageout 到 swap 属同一类机制**。因此 v3"NVMe 上是机制差距"的结论**不成立**；
@@ -77,21 +86,30 @@ PSI 驱动把冷页主动 offload 到 zswap/NVMe swap [17]；Google 远内存（
 Environments（Memstrata，OSDI '24，微软）**[21] 表明 **CXL 分层在虚拟化环境已有系统性研究**——部分
 回应"KVM guest 上分层无实测"之虑（但仍非 Proxmox+DAMON 的直接实测，见"存疑"）。
 
+> **机制底座（论文增量）**：上述论文相对内核上游的增量已逐条"贴回函数"——RamRyder 的 channel 在 mm
+> 中**无对应层级**（源码核验）、MDK 的 promotion-rate 上游只是副产品（`pgpromote_success`/DAMOS
+> stats，源码核验）、MAC 加速的正是 kswapd 扫 `struct folio`+Xarray 的路径（源码核验）、OBASE 重构
+> 的是分配器 size-class 造成的冷热混页（**阅读式**——分配器源码研读、未运行）。全表与逐条证据
+> 分级见 [reverse-digest.md](reverse-digest.md) 收束二；"贴不上的部分即论文增量"。
+
 ## 三、内核视角：历史、现状、演进、预测
 
 内存管理绝大部分来自 Linux 内核，是一等分析源；但须平衡看：VMware 的 vmkernel（非 Linux）虽不继承
 内核上游，却率先把 NVMe 主动分层做到 GA 且 **guest 透明** [1]。
 
 - **历史**：降级"reclaim 时下沉"由 Intel 提交（Dave Hansen，5.15）；提升"hint-fault 选热页"由 Intel
-  提交（Huang Ying，6.1，并引入显式内存层）；"TPP"是 Meta 论文命名。DAMON 访问监控与 `DAMON_RECLAIM`
-  见 5.15/5.16 [16]。
+  提交（Huang Ying，6.1）；**显式内存层**（`mm/memory-tiers.c`）由 IBM 的 Aneesh Kumar K.V 提交
+  （commit `992bf775`，2022-08 作、入 6.1；作者与日期经 GitHub API 一手核验）[27]；"TPP"是 Meta
+  论文命名。DAMON 访问监控与 `DAMON_RECLAIM` 见 5.15/5.16 [16]。
 - **现状（截至 2026-09 [12]）**：加权交织（6.9）、DAMON 迁移 paddr（6.11）、DAMOS 目标度量与加权交织
   自调优（6.16）、DAMON 迁移 vaddr（6.17）；在研 pghot（`kmigrated` + AMD IBS）与"分层感知内存 cgroup"
   （两套竞争补丁，Hahn 方案被认为更值得推进）[12]。**注意**：DAMON 迁移动作在 6.14 仅 paddr 支持，
   vaddr 要到 6.17（PVE 9.1+）。
 - **演进/预测（推断）**：向自调优 + 按 VM（分层感知 memcg）+ CXL 更细治理演进。
 - **结构性含义**：主动分层机制**两条通路都已具备且在快速演进**；VMware 与 Proxmox 都还在"整合"阶段。
-  "骑内核上游"是**所有 KVM 同类共享**的（Red Hat 雇着写 DAMON/TPP 的维护者），故对同类不构成差异。
+  "骑内核上游"是**所有 KVM 同类共享**的——这部分上游代码由多厂工程师共写（显式内存层来自
+  IBM [27]、hint-fault 提升来自 Intel、PSI/`memory.reclaim` 一线来自 Meta [17]），任一 KVM 发行方都
+  同等继承，故对同类不构成差异。
 
 ## 四、差距分析：差在产品化，不在引擎
 
@@ -108,7 +126,10 @@ Environments（Memstrata，OSDI '24，微软）**[21] 表明 **CXL 分层在虚�
 | 成本/授权 | 开源 AGPLv3、无按核授权 | 商业订阅（Broadcom，2024-01 起停永久授权）[13] | **Proxmox 结构性顺风** |
 | 成熟度 | 分层随内核演进、产品化早期 | NVMe 分层 8.0U3 TP（4:1）[2]、**9.0 起 GA**（1:1/4TB）[1][3] | 两者都新 |
 
-一句话：**差距在"整合成品"，不在"分层引擎"。**
+一句话：**差距在"整合成品"，不在"分层引擎"。**"主动分层机制"一行的函数级依据（观测/降级/换出/
+提升四件套在上游齐备）见 [reverse-digest.md](reverse-digest.md)（其"反哺"节把 ADR-0001/0003 由概念级
+证据升为函数级）。"大页"一行 Linux 侧的机制位置——`migrate_pages()` 整体迁移大 folio、目标侧分配
+失败才 split 重试；hugetlb 不入 LRU、既不换出也不降级——亦见 reverse-digest（标注为阅读式）。
 
 ## 五、如何超越：产品化 + 结构性护城河
 
@@ -140,7 +161,9 @@ ZStack/SmartX/深信服）。
 | M2（3 月）| 分层感知集群放置（DRS 式）| 集群级密度提升可测 |
 | M3（4 月）| CXL 原生分层 + DAMOS SLO 策略（随内核）| 有 CXL 硬件的设计伙伴上验证 |
 
-MVP 集成点（已按内核源码核验修正）：
+MVP 集成点（内核侧结论=源码核验，见 [reverse-digest.md](reverse-digest.md)；Proxmox 侧集成点
+【`PVE::API2::Qemu`、`vmid.conf`、`PVE::QemuServer`】=qemu-server 源码研读，属**阅读式**，
+详见 ADR-0003）：
 - 控制面：**`PVE::API2::Qemu`（qemu-server，非 pve-manager）** + GUI；按 VM 策略写 `/etc/pve/
   qemu-server/<vmid>.conf` 新键（如 `memtier: track=nvme-swap,ratio=1:1,cap=...`），`PVE::QemuServer`
   解析。
@@ -148,6 +171,8 @@ MVP 集成点（已按内核源码核验修正）：
   可），辅以 `memory.high`/`memory.swap.max`、`memory.reclaim`；CXL 通路用 TPP/DAMON 迁移。**勿把 guest
   RAM `policy=bind` 到慢层节点**（会使其永不"misplaced"、提升永不触发）[16]。守护进程读 DAMOS `stats`
   与 `/proc/pressure/memory`、`qemu.slice/<vmid>.scope/memory.pressure`。
+- 观测面：**照 damo/DAMON 的分工**——热判断与开销控制在内核、产品层只做配置与呈现；GUI 数据源可
+  直接参照（甚至复用）`damo report heatmap/wss`（见 [reverse-digest.md](reverse-digest.md) 反哺节）。
 
 两条通路（已修正方向：swap-out 由回收/`memory.high`/DAMOS 触发，缺页触发 swap-in）：
 
@@ -255,7 +280,7 @@ AGPLv3 企业 SLA。
 |---|---|---|
 | NVMe 不伤 SLO | 关键负载 P99；`pswpin/out`、`zswp*`、DAMOS stats | 待与 ESXi 头对头实测 |
 | 降成本提密度 | 介质单价、VM 密度 | 介质单价降约 40%–45%（估算 [9][10]，仅介质采购价、未含电力/磨损/CPU）|
-| CXL（期权）| P99、`pgpromote/pgdemote` | 待有 CXL 硬件实测 |
+| CXL（期权）| P99；TPP 路径看 `pgpromote/pgdemote`，DAMON 迁移看 `pgmigrate_*`/DAMOS stats（按 VM 口径见第九节）| 待有 CXL 硬件实测 |
 
 **kill-gate（分门）**：M1 门（NVMe）——启用 <30 分钟、且 config E（vs ESXi）P99 差距 ≤ +15%、密度
 ≥ +50%、迁移 ≤ 2× 基线，达标则进 M2/M3；不达则收缩。**CXL 门在 M3 单独评**，不在第 3 月用 NVMe 证据
@@ -267,9 +292,15 @@ AGPLv3 企业 SLA。
 - **配置**：A 纯 DRAM；B NVMe DAMOS pageout（无 zswap）；B-z 叠 zswap；C 1:2；**D2 DAMON paddr+memcg
   迁移**（CXL，`demotion_enabled=false`/`numa_balancing=0` 隔离）；**E ESXi 9 分层 1:1（同硬件头对头）**。
 - **逼出分层**：host `mem=` 或 `memory.high` 压低快层。
-- **计数器（已核验）**：NVMe 看 `pswpin/pswpout`＋（zswap 时）`zswpin/zswpout/zswpwb`；DAMON 迁移**不进**
-  `pgpromote/pgdemote`，看 `pgmigrate_success/fail` 与 DAMOS `stats`；TPP 才看 `pgpromote/pgdemote`。
-  一律**按 VM**采（`qemu.slice/<vmid>.scope/memory.stat`）。
+- **计数器归属（源码/文档核验）**：NVMe 看 `pswpin/pswpout`＋（zswap 时）`zswpin/zswpout/zswpwb`；
+  DAMON 迁移**不进** `pgpromote/pgdemote`，看 `pgmigrate_success/fail` 与 DAMOS `stats`；TPP 才看
+  `pgpromote/pgdemote`。
+- **按 VM 口径分版本（v6.14 对 master 的 `cgroup-v2.rst` 一手对照 [26]）**：v6.14 的 `memory.stat`
+  **已有** zswap 计数与 `pgdemote_*`（按 VM 采 zswap 活动与降级即刻可行）；`pswpin/pswpout` 在 6.14
+  **仅有全局**（master 才加入 memory.stat，标 npn）——按 VM 需更新内核，期间用每 VM
+  `memory.swap.current` 增量 + `memory.pressure` 近似；`pgpromote` 与 `pgmigrate_*` 仅全局——DAMON
+  迁移的按 VM 归因走"每 VM 一条 DAMOS scheme + memcg 过滤"的 `stats`，或靠 config D2 的单 VM 隔离。
+  完整对照表见 [reverse-digest.md](reverse-digest.md) 收束三。
 - **两维**：热迁移（NVMe=换入风暴、CXL=常驻只是慢，分通路测）；大页（THP 整迁/拆分、hugetlb 排除）。
 - **数值门**：P99 增幅 ≤ +15%、密度 ≥ +50%、介质单价降 ≥ 20%（阈值待基线校准）。
 
@@ -309,6 +340,9 @@ AGPLv3 企业 SLA。
 [20] Equilibria: Fair Multi-Tenant CXL Memory Tiering at Scale（arXiv:2602.08800）. https://arxiv.org/abs/2602.08800
 [21] Zhong 等 — Managing Memory Tiers with CXL in Virtualized Environments（Memstrata，OSDI '24，Microsoft）. https://www.usenix.org/conference/osdi24
 [22] Liu, Hadian, Xu 等 — Tiered Memory Management Beyond Hotness（SoarAlto，OSDI '25）. https://www.usenix.org/conference/osdi25/presentation/liu
+[23]–[25] 见 [reverse-digest.md](reverse-digest.md)（本案例共用编号：QEMU CXL 官方文档、damo README、逆向消化对象仓库清单）.
+[26] Linux `Documentation/admin-guide/cgroup-v2.rst`，v6.14 与 master 对照（本轮经 GitHub API 一手抓取核对 memory.stat 条目：v6.14 有 zswp*/pgdemote_*，无 pswpin/pswpout/pgpromote/pgmigrate）. https://github.com/torvalds/linux/blob/v6.14/Documentation/admin-guide/cgroup-v2.rst
+[27] Linux commit `992bf775` — mm/demotion: add support for explicit memory tiers（作者 Aneesh Kumar K.V, IBM；2022-08 作，入 v6.1；经 GitHub API 一手核验）. https://github.com/torvalds/linux/commit/992bf77591cb
 
 ## 修订说明（v4，经两轮 7 路评审）
 
@@ -324,6 +358,19 @@ AGPLv3 企业 SLA。
   实为 Intel 提交、Meta 命名；新增 TMO[17]/内核文档[16]/Yellow-Bricks[18]/PVE 9.2[19]。
 - 论点/规划：信创限定（国产 CPU/OS、无 CXL、CoCo）；对手补国产 HCI、修 XCP-ng=Xen；迁移/HA 提到 M1
   门；评分证据改作门槛；新增与 ESXi 头对头 config E。
+- **v4.3（按升级后 SOP 迭代）**：SOP 将"逆向学习"升为阶段二正式子步骤并设"机制底座"必过门后，回灌
+  本报告——§一/§二/§四/§六 的机制性判断挂接到 [reverse-digest.md](reverse-digest.md) 的函数级证据
+  （`can_demote()` 分岔、论文增量表、damo 分工），MVP 观测面新增 damo 参照。结论不变（底座支持 v4
+  论点，无新的方向性发现）。
+- **v4.4（机制底座对拍返修）**：一路 Fable-5 reviewer 对 report×reverse-digest 做一致性对拍，判
+  FAIL（9 条必修），已全部修复并经一手再核验：① **作者归属改正**——显式内存层出自 IBM 的 Aneesh
+  Kumar K.V（`992bf775`，GitHub API 核验 [27]），非 Huang Ying/Intel；② 删除无据的"Red Hat 雇着写
+  DAMON/TPP 维护者"断言，改为有引注的多厂共写表述；③ **计数器按 VM 口径分版本重述**——v6.14
+  `memory.stat` 有 zswp*/`pgdemote_*`（降级可按 VM，此为对拍后新查明的利好）、无 `pswpin/pswpout`
+  （master 才有）[26]，原"一律按 VM 采"不成立；④ §八 CXL 指标行与 §九 对齐（DAMON 迁移不进
+  `pgpromote/pgdemote`）；⑤ 大页、热迁移换入、勿 bind 三处机制主张补函数锚点入 reverse-digest；
+  ⑥ "阅读式"分级在正文显性化（OBASE 底座、Proxmox 集成点）；⑦ 修复 digest→report 悬空引用；
+  ⑧ NUMA 通路"访问不缺页"细化为"无主缺页/无 I/O（hint fault 为轻量采样缺页）"。
 
 ## 存疑与需确认
 

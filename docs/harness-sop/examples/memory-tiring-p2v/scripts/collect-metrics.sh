@@ -30,6 +30,10 @@ done
 for pr in /sys/fs/cgroup/qemu.slice/*.scope/memory.pressure; do
   [ -r "$pr" ] && { echo "== $pr =="; cat "$pr"; } >> "$dst/per-vm-memory-pressure.txt" 2>/dev/null || true
 done
+# 按 VM swap 占用（v6.14 memory.stat 无 pswpin/pswpout，用 swap.current 增量近似换入/换出活动）
+for sc in /sys/fs/cgroup/qemu.slice/*.scope/memory.swap.current; do
+  [ -r "$sc" ] && { echo "== $sc =="; cat "$sc"; } >> "$dst/per-vm-swap-current.txt" 2>/dev/null || true
+done
 # DAMOS 方案统计（DAMON 迁移/pageout 的真实计量；若已配置 DAMON）
 for st in /sys/kernel/mm/damon/admin/kdamonds/*/contexts/*/schemes/*/stats; do
   [ -d "$st" ] && { echo "== $st =="; grep -H . "$st"/* 2>/dev/null; } >> "$dst/damos-stats.txt" 2>/dev/null || true

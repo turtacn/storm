@@ -92,6 +92,13 @@ hugetlb（1 GiB）排除。
 > 时看 `zswpin/zswpout/zswpwb`）；**DAMON 迁移（D2）不进 `pgpromote/pgdemote`**，看 `pgmigrate_success/fail`
 > 与 DAMOS `stats`；只有 TPP（`demotion_enabled`+`numa_balancing`）才计 `pgdemote/pgpromote`。host 全局
 > 计数无法归因到单台 VM，按 VM（`qemu.slice/<vmid>.scope/memory.stat` 与 `memory.pressure`）采集为硬性要求。
+>
+> **按 VM 的可得性分版本**（v6.14 对 master 的 `cgroup-v2.rst` 一手对照，见报告 [26] 与
+> reverse-digest 收束三）：v6.14 的 `memory.stat` **有** `zswpin/zswpout/zswpwb` 与
+> `pgdemote_kswapd/direct/khugepaged`（zswap 活动与降级可直接按 VM 采）；**无** `pswpin/pswpout`
+> （master 才加入，标 npn）——6.14 上按 VM 的 swap 换入/换出用 `memory.swap.current` 增量 +
+> `memory.pressure` 近似；`pgpromote` 与 `pgmigrate_*` 仅全局——DAMON 迁移按 VM 归因用"每 VM 一条
+> DAMOS scheme + memcg 过滤"的 `stats`，或靠 D2 的单 VM 隔离设计。
 
 采集见 [`scripts/collect-metrics.sh`](scripts/collect-metrics.sh)（只读快照，安全）。
 

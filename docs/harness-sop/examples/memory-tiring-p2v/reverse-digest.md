@@ -1,10 +1,11 @@
 # 逆向消化摘要 · 内存分层开源栈（reverse-digest）
 
 > 按 [reverse-learning-map](../../reverse-learning-map.md) 方法，对用户给定课程（作为**线索**）执行
-> reverse 技能（开源形态=源码/机制研读）。证据分三级并逐处标注：**源码核验**（本会话已对 v6.14 内核
-> 源码逐条核验 [16]）、**文档核验**（本轮一手抓取 QEMU/damo 官方文档 [23][24]）、**阅读式**（稳定
-> 上游知识，未在本环境编译运行——运行式验证并入 [benchmark-plan](benchmark-plan.md)）。
-> 引用编号沿用 [report.md](report.md)。
+> reverse 技能（开源形态=源码/机制研读）。证据分三级并逐处标注：**源码核验**（对 torvalds/linux
+> 源码树与具体提交核验，v6.14 为主，锚点如显式内存层提交 `992bf775` [27]；[16] 的内核文档站仅作
+> 入口）、**文档核验**（一手抓取官方文档：QEMU/damo [23][24]、cgroup-v2.rst 按版本对照 [26]）、
+> **阅读式**（稳定上游知识，未在本环境编译运行——运行式验证并入
+> [benchmark-plan](benchmark-plan.md)）。引用编号沿用 [report.md](report.md)。
 
 ## 章节大纲
 
@@ -12,7 +13,7 @@
 - P1：观测与放置（damo / numactl / pcm·likwid / memkind）
 - P2：冷热混页的源头（tcmalloc / jemalloc）
 - P3：只看时序（gem5 / ramulator2）
-- 收束一：仓库四分法；收束二：论文名词贴回函数（含论文增量）
+- 收束一：仓库四分法；收束二：论文名词贴回函数（含论文增量）；收束三：计数器与按 VM 观测面
 - 对本案例（v4）的反哺
 - 存疑与参考资料
 
@@ -22,15 +23,23 @@
 
 三个逆向问题的答案，都在同一条链上：
 
-- **谁把页标成冷的？** 三套并行机制：① `mm/damon/` 的 kdamond 按区域采样访问频次
+- **谁判定页的冷与热？** 三套并行机制：① `mm/damon/` 的 kdamond 按区域采样访问频次
   `nr_accesses`（paddr/vaddr 两种 ops）；② `mm/vmscan.c` 的 LRU 老化（kswapd/直接回收经 rmap 检查
-  Accessed 位）；③ `numa_balancing=2` 的 hint fault 选**热**页（提升候选，`mm/migrate.c`）。
+  Accessed 位）——这两套判**冷**；③ `numa_balancing=2` 的 hint fault 选**热**页（提升候选，
+  `mm/migrate.c`）——这套在热侧，与前两套方向相反、并行工作。
 - **谁决定留 DRAM 还是降慢层？** 回收路径 `shrink_folio_list → demote_folio_list`，由
   `can_demote()` 把关（存在更低内存层 + `demotion_enabled`，层由 `mm/memory-tiers.c` 组织）；
   另一条是 DAMOS 方案（配额/目标门控下执行 `pageout` 或 `migrate_hot/cold`）。
 - **降级是整页迁移还是换出？** **两个不同出口**：降级 = `migrate_pages()` 把页迁到低层 NUMA 节点
   （页保持映射、字节可寻址）；换出 = `pageout` 解除映射写入 swap（再访问触发主缺页）。同一次回收
   扫描里按 `can_demote()` 分岔。
+- **大页怎么办？**（阅读式）`migrate_pages()` 以 folio 为单位整体迁移大 folio，目标侧分配失败
+  （-ENOMEM）才走 split 重试路径（`mm/migrate.c`）；hugetlb 页不入 LRU、不进 `shrink_folio_list`，
+  故既不被回收换出也不被降级——1 GiB hugetlb 完全不参与分层。这是报告差距表"双方都牺牲大页"
+  一行 Linux 侧的机制位置。
+- **策略绑定的反面教材？**（阅读式）`mpol_misplaced()`（`mm/mempolicy.c`）对 bind 策略命中的页
+  判为"未错置"，NUMA balancing 的提升因此永不触发——即报告"勿把 guest RAM bind 到慢层节点"
+  的函数级位置。
 
 ```mermaid
 flowchart TD
@@ -66,15 +75,17 @@ flowchart TD
 - **边界**：QEMU **不仿真一致性协议**、聚焦 CXL 2.0+、单主机静态配置——给的是**功能拓扑，不是
   DDR/CXL 时序**；该文档未载内存热插/热度（热插走通用 ACPI 内存热插/virtio-mem 路径，属阅读式
   判断）。
+- **热迁移读什么？**（阅读式）QEMU 迁移在 `migration/ram.c` 逐页读源端 guest RAM——已被 host 换出
+  的页在读取时触发 swap-in，这是报告"NVMe 通路迁移=换入风暴"判断的机制来源。
 - **对照**：RamRyder 的 channel/chunk/热插可在"节点级"仿真、无 channel 级；MAC 的双 NUMA 仿真
   思路同源。
 
-### 3. pmem/ndctl（cxl/daxctl）—— 拓扑到可用内存（源码核验 + 阅读式）
+### 3. pmem/ndctl（cxl/daxctl）—— 拓扑到可用内存（分级：见句内标注）
 
 - **一个 CXL 设备如何变成可绑定内存？** `cxl` 建 region → 出 device-dax（`/dev/daxX.Y`）→
   `daxctl reconfigure-device --mode=system-ram` 经 kmem 驱动把它 online 成一个**内存 NUMA 节点**
-  （建议 `auto_online_blocks=online_movable`）。已核验：daxctl **只作用于 device-dax**（PMem/CXL），
-  块设备（NVMe）永远走不进这条路。
+  （建议 `auto_online_blocks=online_movable`）——这条链与 online 建议为**阅读式**。**源码核验**的
+  是边界：daxctl **只作用于 device-dax**（PMem/CXL），块设备（NVMe）永远走不进这条路。
 - **对照**：RamRyder 把 channel 收成独立 DAX device 的运维侧正是这条链的变体。
 
 ## P1 · 观测与放置
@@ -126,7 +137,7 @@ flowchart TD
 
 | 仓库 | 改变的是 | 一句话答案 |
 |---|---|---|
-| linux（mm）| **放置 + 回收** | 冷判断三套并行；降级=迁移、换出=swap，`can_demote()` 分岔 |
+| linux（mm）| **放置 + 回收** | 冷/热判定三套并行；降级=迁移、换出=swap，`can_demote()` 分岔 |
 | damo/DAMON | **观测** | 热判断与开销在内核，工具只配置呈现；观测一键接 DAMOS 动作 |
 | numactl | 放置 | 只有 node 级，无 channel 级 |
 | pcm/likwid | 观测（带宽）| 通道/控制器级，难归因到进程 |
@@ -146,7 +157,27 @@ flowchart TD
 | 冷热混页（OBASE）| 分配器 size class 的 co-residency | Guide 间接 + HOT/COLD 堆重排对象 |
 | 降级/提升 | `demote_folio_list`/`migrate_pages`；hint-fault 提升 | —（上游已有，论文在其上建策略）|
 
-**贴不上的部分即论文增量**——这一列直接回填了 [report.md](report.md) §二"对本设计的含义"。
+**贴不上的部分即论文增量**——这一列直接回填了 [report.md](report.md) §二的"机制底座（论文增量）"
+引块。
+
+## 收束三 · 计数器与按 VM 观测面（文档核验 [26]）
+
+分层的每条动作路径各有计数器，**host 全局（`/proc/vmstat`）与按 VM（cgroup v2 `memory.stat`）
+的可得性并不对称**，且随内核版本变化。本表按 v6.14（PVE 9.0 代）与 master 的 `cgroup-v2.rst`
+一手对照 [26]：
+
+| 计数器 | 动作路径 | host 全局 | 按 VM（`qemu.slice/<vmid>.scope/memory.stat`）|
+|---|---|---|---|
+| `pswpin/pswpout` | swap 换入/换出 | 有 | **v6.14 无**；master 已加（npn 条目）——按 VM 需更新内核，期间用 `memory.swap.current` 增量 + PSI 近似 |
+| `zswpin/zswpout/zswpwb` | zswap 进出/回写 | 有 | **v6.14 已有** |
+| `pgdemote_kswapd/direct/khugepaged` | 回收路径降级（TPP）| 有 | **v6.14 已有**——按 VM 采降级在 6.14 即可行 |
+| `pgpromote_success` | hint-fault 提升（TPP）| 有 | v6.14 无 |
+| `pgmigrate_success/fail` | `migrate_pages()`（含 DAMON 迁移）| 有 | 无（v6.14 与 master 均无）|
+| DAMOS `stats` | 每 scheme 的动作统计 | sysfs 按 scheme | 仅当"每 VM 一条 scheme + memcg 过滤"编排时才等价于按 VM |
+
+**含义**：v6.14 上按 VM 能直接采的是 **zswap 计数与降级（`pgdemote_*`）**；swap 换入/换出按 VM 要
+等更新内核（或近似）；提升与 DAMON 迁移只有全局计数，按 VM 归因须靠 DAMOS per-scheme `stats`
+或单 VM 隔离实验设计（benchmark-plan 的 config D2 正是后者）。
 
 ## 对本案例（v4）的反哺
 
@@ -161,8 +192,9 @@ flowchart TD
 
 ## 存疑与需确认
 
-- 本消化为**阅读式逆向**（源码/文档），未在本环境编译运行各仓库；运行式验证（damo 抓真实负载、
-  QEMU 起 CXL 拓扑、pcm 读通道带宽）已并入 [benchmark-plan](benchmark-plan.md) 的执行前置。
+- 本消化为**静态研读（未运行）**——只读源码与文档、未在本环境编译运行各仓库（"阅读式"一词
+  保留为三级证据分级中的专名，不再指代全文）；运行式验证（damo 抓真实负载、QEMU 起 CXL 拓扑、
+  pcm 读通道带宽）已并入 [benchmark-plan](benchmark-plan.md) 的执行前置。
 - QEMU CXL 文档未载热插/热度支持细节 [23]；P1 工具的实际开销未实测。
 - 2026 论文原型仓库（MAC/NEMO/OBASE/MDK/RamRyder 及 Memtis/HeMem/Pond）**不写死地址**——命名与
   归属以作者主页/会议 artifact 为准（沿用"用户输入=线索须核验"原则；NEMO/OBASE 命名仍未独立确认）。
@@ -174,3 +206,5 @@ flowchart TD
 [23] QEMU 官方文档 — CXL 仿真（docs/system/devices/cxl.rst，本轮一手抓取）. https://www.qemu.org/docs/master/system/devices/cxl.html
 [24] damonitor/damo — README（本轮一手抓取）. https://github.com/damonitor/damo
 [25] 消化对象仓库：torvalds/linux · qemu/qemu · pmem/ndctl · damonitor/damo · numactl/numactl · intel/pcm · RRZE-HPC/likwid · memkind/memkind · google/tcmalloc · jemalloc/jemalloc · gem5/gem5 · CMU-SAFARI/ramulator2（均为 GitHub 公开仓库）.
+[26] Linux `Documentation/admin-guide/cgroup-v2.rst`，v6.14 与 master 对照（本轮经 GitHub API 一手抓取核对 memory.stat 条目）. https://github.com/torvalds/linux/blob/v6.14/Documentation/admin-guide/cgroup-v2.rst
+[27] Linux commit `992bf775` — mm/demotion: add support for explicit memory tiers（作者 Aneesh Kumar K.V, IBM；2022-08 作，入 v6.1；本轮经 GitHub API 一手核验作者与日期）. https://github.com/torvalds/linux/commit/992bf77591cb
